@@ -1,0 +1,26 @@
+{
+  "name": "@molly/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./pi-runtime-adapter": {
+      "types": "./dist/pi-runtime-adapter.d.ts",
+      "default": "./dist/pi-runtime-adapter.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "0.85.0",
+    "@molly/contracts": "0.1.0"
+  }
+}

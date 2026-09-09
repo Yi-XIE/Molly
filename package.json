@@ -1,0 +1,36 @@
+{
+  "name": "molly-personal-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Molly — Yi's local-first, multi-surface personal assistant.",
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n desktop,gateway -c magenta,cyan \"npm run dev:desktop\" \"npm run dev:gateway\"",
+    "dev:desktop": "npm run dev -w @molly/desktop",
+    "dev:gateway": "npm run dev -w @molly/gateway",
+    "build:packages": "npm run build -w @molly/contracts && npm run build -w @molly/core",
+    "build": "npm run build:packages && npm run build -w @molly/gateway && npm run build -w @molly/desktop",
+    "typecheck": "npm run build -w @molly/contracts && npm run build -w @molly/core && npm run typecheck -w @molly/contracts && npm run typecheck -w @molly/core && npm run typecheck -w @molly/gateway && npm run typecheck -w @molly/desktop",
+    "test": "npm run build:packages && vitest run",
+    "test:watch": "vitest",
+    "pi": "node scripts/run-pi.mjs",
+    "validate": "node scripts/validate-experiment.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.1.1",
+    "concurrently": "^9.2.1",
+    "electron": "42.3.0",
+    "electron-vite": "^4.0.1",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^3.2.4"
+  }
+}

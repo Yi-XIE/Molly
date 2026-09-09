@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+.vite/
+.pi-home/
+.pi/npm/
+.pi/sessions/
+.venv-openviking/
+downloads/
+*.log
+*.db
+*.db-shm
+*.db-wal
+apps/gateway/.env
+apps/desktop/.env
+apps/desktop/release/

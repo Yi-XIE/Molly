@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "events": [
+    {
+      "id": "EV-001",
+      "occurred_at": "2026-09-05",
+      "task_id": "SETUP-001",
+      "event_type": "experiment_initialized",
+      "summary": "Yi authorized continuation after reviewing the experiment baseline.",
+      "rule_ids": ["WM-001", "WM-002", "WM-003", "WM-004", "WM-005", "WM-006", "WM-007"],
+      "result": "Seven traceable seed rules were initialized for phase one."
+    }
+  ]
+}
+

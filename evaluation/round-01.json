@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "round_id": "ROUND-01",
+  "status": "ready",
+  "blind_review": true,
+  "tasks": [
+    {
+      "task_id": "R1-PRODUCT",
+      "category": "product_idea_development",
+      "brief": "Develop a fuzzy Starlight product idea into a reviewable proposal covering users, scenario, value, workflow, rules, boundaries, reliability, and acceptance criteria.",
+      "baseline_condition": "Run without confirmed working-method memory.",
+      "memory_condition": "Run with memory/confirmed-rules.json available.",
+      "real_input_status": "awaiting_yi_input"
+    },
+    {
+      "task_id": "R1-KNOWLEDGE",
+      "category": "knowledge_placement",
+      "brief": "Decide where a supplied product passage belongs in the knowledge base and produce a minimal write plan without executing a real write.",
+      "baseline_condition": "Run without confirmed working-method memory.",
+      "memory_condition": "Run with memory/confirmed-rules.json available.",
+      "real_input_status": "awaiting_yi_input"
+    },
+    {
+      "task_id": "R1-REVIEW",
+      "category": "product_review",
+      "brief": "Review a teacher-facing feature proposal, identifying ineffective wording, critical gaps, and decisions that belong to Yi.",
+      "baseline_condition": "Run without confirmed working-method memory.",
+      "memory_condition": "Run with memory/confirmed-rules.json available.",
+      "real_input_status": "awaiting_yi_input"
+    }
+  ],
+  "review_order": "Randomize A and B labels before presenting outputs to Yi.",
+  "promotion_policy": "One result cannot promote or rewrite a confirmed rule."
+}
+

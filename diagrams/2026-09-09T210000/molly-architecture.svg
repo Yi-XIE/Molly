@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100" role="img" aria-labelledby="title desc">
+  <title id="title">Molly 技术架构：单一 Molly、隔离工作区与确定性上下文编译</title>
+  <desc id="desc">展示 Yi 与多端入口、Molly Core、Pi Runtime、本地存储、按需插件及未来云网关之间的数据流、上下文隔离和产物回流。</desc>
+
+  <!-- 背景与标题 -->
+  <rect x="0" y="0" width="1800" height="1100" fill="#F7F9FC"/>
+  <text x="60" y="58" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="30" font-weight="700" fill="#172033">Molly 技术架构</text>
+  <text x="60" y="92" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" fill="#5C6B82">单一 Molly · 隔离工作区 · 确定性上下文编译 · 产物优先</text>
+
+  <!-- 图例 -->
+  <rect x="1320" y="34" width="420" height="54" rx="12" fill="#FFFFFF" stroke="#D8E0EC"/>
+  <rect x="1340" y="52" width="14" height="14" rx="3" fill="#DDEBFF" stroke="#4B7BEC"/>
+  <text x="1364" y="65" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#445169">运行组件</text>
+  <rect x="1450" y="52" width="14" height="14" rx="3" fill="#E8F7F1" stroke="#28A77A"/>
+  <text x="1474" y="65" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#445169">本地数据</text>
+  <rect x="1558" y="52" width="14" height="14" rx="3" fill="#FFF1D8" stroke="#D48A1C"/>
+  <text x="1582" y="65" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#445169">未来扩展</text>
+
+  <!-- 入口层 -->
+  <rect x="50" y="145" width="250" height="370" rx="18" fill="#FFFFFF" stroke="#B8C6D9" stroke-width="2"/>
+  <text x="76" y="184" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="20" font-weight="700" fill="#172033">入口层</text>
+  <text x="76" y="211" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#718096">同一个 Molly，不要求 Yi 管理 Agent</text>
+
+  <rect x="76" y="240" width="198" height="88" rx="12" fill="#DDEBFF" stroke="#4B7BEC" stroke-width="2"/>
+  <text x="175" y="273" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="17" font-weight="700" fill="#214C9A">Yi · Windows 桌面端</text>
+  <text x="175" y="298" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#355A95">对话 / 当前焦点 / 结果卡片</text>
+
+  <rect x="76" y="354" width="198" height="126" rx="12" fill="#FFF1D8" stroke="#D48A1C" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="175" y="383" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#8A5A0A">未来 Channel Adapter</text>
+  <text x="175" y="410" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="14" fill="#815E27">飞书 · 微信 · PWA</text>
+  <text x="175" y="438" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#8A6B35">只增加入口，不改变任务与记忆协议</text>
+
+  <!-- Molly Core 容器 -->
+  <rect x="345" y="145" width="720" height="430" rx="20" fill="#F1F6FF" stroke="#6C8FD7" stroke-width="2"/>
+  <text x="375" y="184" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="22" font-weight="700" fill="#214C9A">Molly Core</text>
+  <text x="375" y="211" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#5570A7">把复杂工程能力藏在幕后，只暴露“当前焦点”和产物</text>
+
+  <!-- Core 第一行 -->
+  <rect x="375" y="245" width="192" height="92" rx="12" fill="#FFFFFF" stroke="#4B7BEC" stroke-width="2"/>
+  <text x="471" y="278" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#214C9A">IntentRouter</text>
+  <text x="471" y="304" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#536786">继续 / 切换 / 轻量确认</text>
+
+  <rect x="607" y="245" width="206" height="92" rx="12" fill="#FFFFFF" stroke="#4B7BEC" stroke-width="2"/>
+  <text x="710" y="278" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#214C9A">ContextCompiler</text>
+  <text x="710" y="304" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#536786">白名单 ContextCapsule</text>
+
+  <rect x="853" y="245" width="182" height="92" rx="12" fill="#FFFFFF" stroke="#4B7BEC" stroke-width="2"/>
+  <text x="944" y="278" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#214C9A">TaskService</text>
+  <text x="944" y="304" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#536786">任务状态 / 事件 / 产物</text>
+
+  <!-- Core 第二行 -->
+  <rect x="375" y="385" width="192" height="105" rx="12" fill="#E8F7F1" stroke="#28A77A" stroke-width="2"/>
+  <text x="471" y="418" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#157254">WorkItem Store</text>
+  <text x="471" y="444" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#3F7A68">当前焦点、状态、来源</text>
+  <text x="471" y="465" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#3F7A68">工作图只做索引</text>
+
+  <rect x="607" y="385" width="206" height="105" rx="12" fill="#E8F7F1" stroke="#28A77A" stroke-width="2"/>
+  <text x="710" y="418" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#157254">Scoped Memory</text>
+  <text x="710" y="444" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#3F7A68">全局规则 + 当前工作项</text>
+  <text x="710" y="465" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#3F7A68">敏感话题默认隔离</text>
+
+  <rect x="853" y="385" width="182" height="105" rx="12" fill="#FFFFFF" stroke="#4B7BEC" stroke-width="2"/>
+  <text x="944" y="418" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#214C9A">Tool Broker</text>
+  <text x="944" y="444" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#536786">工具白名单 / 目标校验</text>
+  <text x="944" y="465" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#536786">确认与审计边界</text>
+
+  <!-- Core 说明条 -->
+  <rect x="375" y="515" width="660" height="36" rx="10" fill="#E5EEFF" stroke="#A9BFE9"/>
+  <text x="705" y="539" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#365B9F">每回合只加载当前 WorkItem：摘要、决策、允许读取的产物与待解决问题</text>
+
+  <!-- Pi Runtime -->
+  <rect x="1110" y="145" width="640" height="430" rx="20" fill="#FFFFFF" stroke="#7C8AA3" stroke-width="2"/>
+  <text x="1140" y="184" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="22" font-weight="700" fill="#314159">Pi Runtime</text>
+  <text x="1140" y="211" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#66758D">保留 Pi 的核心：会话、执行、压缩与扩展</text>
+
+  <rect x="1140" y="245" width="178" height="92" rx="12" fill="#DDEBFF" stroke="#4B7BEC" stroke-width="2"/>
+  <text x="1229" y="278" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#214C9A">AgentSession</text>
+  <text x="1229" y="304" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#355A95">一工作项一会话</text>
+
+  <rect x="1340" y="245" width="178" height="92" rx="12" fill="#DDEBFF" stroke="#4B7BEC" stroke-width="2"/>
+  <text x="1429" y="278" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#214C9A">SessionManager</text>
+  <text x="1429" y="304" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#355A95">恢复 / 切换 / 事件</text>
+
+  <rect x="1540" y="245" width="178" height="92" rx="12" fill="#DDEBFF" stroke="#4B7BEC" stroke-width="2"/>
+  <text x="1629" y="278" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#214C9A">Compaction</text>
+  <text x="1629" y="304" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#355A95">物理历史压缩</text>
+
+  <rect x="1140" y="385" width="578" height="110" rx="12" fill="#FFF1D8" stroke="#D48A1C" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="1429" y="418" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#8A5A0A">Extensions · 按需插件</text>
+  <text x="1235" y="451" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#815E27">pi-memory</text>
+  <text x="1335" y="451" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#815E27">Web Access</text>
+  <text x="1435" y="451" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#815E27">MCP Adapter</text>
+  <text x="1535" y="451" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#815E27">Subagent</text>
+  <text x="1635" y="451" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#815E27">Todo</text>
+  <text x="1429" y="476" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#8A6B35">默认关闭高风险能力，由 Tool Broker 按任务开放</text>
+
+  <!-- 本地数据层 -->
+  <rect x="345" y="635" width="720" height="230" rx="20" fill="#ECFAF5" stroke="#5FB496" stroke-width="2"/>
+  <text x="375" y="674" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="21" font-weight="700" fill="#157254">本地节点 · 数据与工作区</text>
+  <text x="375" y="700" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#4D806F">P0 纯本地：会话、记忆、完整聊天和产物留在 Windows</text>
+
+  <path d="M375 748 C375 738 418 730 471 730 C524 730 567 738 567 748 L567 804 C567 814 524 822 471 822 C418 822 375 814 375 804 Z" fill="#FFFFFF" stroke="#28A77A" stroke-width="2"/>
+  <path d="M375 748 C375 758 418 766 471 766 C524 766 567 758 567 748" fill="none" stroke="#28A77A" stroke-width="2"/>
+  <text x="471" y="786" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#157254">SQLite</text>
+  <text x="471" y="808" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#3F7A68">任务 / 事件 / 审计索引</text>
+
+  <rect x="607" y="730" width="206" height="92" rx="12" fill="#FFFFFF" stroke="#28A77A" stroke-width="2"/>
+  <text x="710" y="764" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#157254">WorkItem Workspace</text>
+  <text x="710" y="790" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#3F7A68">session / working / capsule</text>
+
+  <rect x="853" y="730" width="182" height="92" rx="12" fill="#FFFFFF" stroke="#28A77A" stroke-width="2"/>
+  <text x="944" y="764" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#157254">Artifacts</text>
+  <text x="944" y="790" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#3F7A68">文档 / 网页 / Todo 结果</text>
+
+  <!-- 云网关 -->
+  <rect x="1110" y="635" width="640" height="230" rx="20" fill="#FFF8EA" stroke="#D7A552" stroke-width="2" stroke-dasharray="9 6"/>
+  <text x="1140" y="674" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="21" font-weight="700" fill="#8A5A0A">未来云网关（可选）</text>
+  <text x="1140" y="700" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="13" fill="#8A6B35">只承担加密队列与状态投影，不保存完整上下文</text>
+
+  <rect x="1140" y="730" width="240" height="92" rx="12" fill="#FFFFFF" stroke="#D48A1C" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="1260" y="764" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#8A5A0A">加密任务队列</text>
+  <text x="1260" y="790" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#8A6B35">离线排队 / 出站连接</text>
+
+  <rect x="1410" y="730" width="308" height="92" rx="12" fill="#FFFFFF" stroke="#D48A1C" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="1564" y="764" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#8A5A0A">状态投影与结果送达</text>
+  <text x="1564" y="790" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#8A6B35">飞书卡片 / 微信通知 / PWA</text>
+
+  <!-- 数据流与调用关系：用线 + 三角箭头，便于白板编辑 -->
+  <!-- 入口 -> IntentRouter -->
+  <line x1="300" y1="284" x2="375" y2="284" stroke="#4B7BEC" stroke-width="3"/>
+  <polyline points="363,277 375,284 363,291" fill="none" stroke="#4B7BEC" stroke-width="3"/>
+  <line x1="300" y1="418" x2="340" y2="418" stroke="#D48A1C" stroke-width="2" stroke-dasharray="7 5"/>
+  <line x1="340" y1="418" x2="340" y2="284" stroke="#D48A1C" stroke-width="2" stroke-dasharray="7 5"/>
+  <line x1="340" y1="284" x2="375" y2="284" stroke="#D48A1C" stroke-width="2" stroke-dasharray="7 5"/>
+  <polyline points="363,278 375,284 363,290" fill="none" stroke="#D48A1C" stroke-width="2"/>
+
+  <!-- Core 内部主链路 -->
+  <line x1="567" y1="291" x2="607" y2="291" stroke="#4B7BEC" stroke-width="3"/>
+  <polyline points="595,284 607,291 595,298" fill="none" stroke="#4B7BEC" stroke-width="3"/>
+  <line x1="813" y1="291" x2="853" y2="291" stroke="#4B7BEC" stroke-width="3"/>
+  <polyline points="841,284 853,291 841,298" fill="none" stroke="#4B7BEC" stroke-width="3"/>
+  <line x1="471" y1="337" x2="471" y2="385" stroke="#28A77A" stroke-width="2"/>
+  <polyline points="464,373 471,385 478,373" fill="none" stroke="#28A77A" stroke-width="2"/>
+  <line x1="710" y1="337" x2="710" y2="385" stroke="#28A77A" stroke-width="2"/>
+  <polyline points="703,373 710,385 717,373" fill="none" stroke="#28A77A" stroke-width="2"/>
+  <line x1="944" y1="337" x2="944" y2="385" stroke="#4B7BEC" stroke-width="2"/>
+  <polyline points="937,373 944,385 951,373" fill="none" stroke="#4B7BEC" stroke-width="2"/>
+
+  <!-- Core -> Pi Runtime -->
+  <line x1="1065" y1="291" x2="1140" y2="291" stroke="#4B7BEC" stroke-width="3"/>
+  <polyline points="1128,284 1140,291 1128,298" fill="none" stroke="#4B7BEC" stroke-width="3"/>
+
+  <!-- Pi 内部 -->
+  <line x1="1318" y1="291" x2="1340" y2="291" stroke="#4B7BEC" stroke-width="2"/>
+  <polyline points="1328,285 1340,291 1328,297" fill="none" stroke="#4B7BEC" stroke-width="2"/>
+  <line x1="1518" y1="291" x2="1540" y2="291" stroke="#4B7BEC" stroke-width="2"/>
+  <polyline points="1528,285 1540,291 1528,297" fill="none" stroke="#4B7BEC" stroke-width="2"/>
+  <line x1="1429" y1="337" x2="1429" y2="385" stroke="#D48A1C" stroke-width="2" stroke-dasharray="7 5"/>
+  <polyline points="1422,373 1429,385 1436,373" fill="none" stroke="#D48A1C" stroke-width="2"/>
+
+  <!-- Pi -> 本地工作区 / 产物回流 -->
+  <polyline points="1229,337 1090,337 1090,605 710,605 710,730" fill="none" stroke="#28A77A" stroke-width="2" stroke-dasharray="8 5"/>
+  <polyline points="703,718 710,730 717,718" fill="none" stroke="#28A77A" stroke-width="2"/>
+  <text x="935" y="595" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#3F7A68">Session / cwd 隔离</text>
+
+  <line x1="944" y1="490" x2="944" y2="730" stroke="#28A77A" stroke-width="2" stroke-dasharray="8 5"/>
+  <polyline points="937,718 944,730 951,718" fill="none" stroke="#28A77A" stroke-width="2"/>
+  <text x="955" y="615" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#3F7A68">产物索引</text>
+
+  <!-- 产物回到 Molly Core -->
+  <line x1="853" y1="435" x2="813" y2="435" stroke="#28A77A" stroke-width="2"/>
+  <polyline points="825,428 813,435 825,442" fill="none" stroke="#28A77A" stroke-width="2"/>
+
+  <!-- 云网关关系 -->
+  <polyline points="274,417 320,417 320,892 1080,892 1080,776 1140,776" fill="none" stroke="#D48A1C" stroke-width="2" stroke-dasharray="9 6"/>
+  <polyline points="1128,770 1140,776 1128,782" fill="none" stroke="#D48A1C" stroke-width="2"/>
+  <polyline points="286,411 274,417 286,423" fill="none" stroke="#D48A1C" stroke-width="2"/>
+  <text x="700" y="885" text-anchor="middle" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="12" fill="#8A6B35">未来入口双向传递加密任务与最小状态</text>
+
+  <line x1="1380" y1="776" x2="1410" y2="776" stroke="#D48A1C" stroke-width="2" stroke-dasharray="7 5"/>
+  <polyline points="1398,770 1410,776 1398,782" fill="none" stroke="#D48A1C" stroke-width="2"/>
+
+  <!-- 底部用户可见闭环 -->
+  <rect x="50" y="920" width="1700" height="112" rx="18" fill="#172033"/>
+  <text x="82" y="954" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" font-weight="700" fill="#FFFFFF">Yi 只感知一个简单闭环</text>
+  <text x="82" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" fill="#DDEBFF">输入想法</text>
+  <text x="210" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="22" fill="#93B7FF">→</text>
+  <text x="250" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" fill="#DDEBFF">自动跟随当前焦点</text>
+  <text x="493" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="22" fill="#93B7FF">→</text>
+  <text x="533" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" fill="#DDEBFF">Molly 处理</text>
+  <text x="680" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="22" fill="#93B7FF">→</text>
+  <text x="720" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" fill="#DDEBFF">产物回流</text>
+  <text x="865" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="22" fill="#93B7FF">→</text>
+  <text x="905" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="16" fill="#DDEBFF">继续 / 切换 / 撤回</text>
+  <text x="1230" y="989" font-family="Microsoft YaHei, PingFang SC, sans-serif" font-size="14" fill="#A7B6CF">内部的工作项、记忆、插件、会话和审计全部隐藏在后端</text>
+</svg>

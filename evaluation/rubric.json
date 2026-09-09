@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "scale": {
+    "minimum": 1,
+    "maximum": 5,
+    "meaning": "1 is clearly misaligned; 5 is strongly aligned with little or no correction needed."
+  },
+  "criteria": [
+    {
+      "id": "REPEAT_EXPLANATION",
+      "name": "Reduced repeated explanation",
+      "measurement": "Count Yi's follow-up prompts that correct working method rather than add task facts."
+    },
+    {
+      "id": "FIRST_ACTION_FIT",
+      "name": "First-action fit",
+      "measurement": "Score the share of key first-plan steps retained in Yi's accepted path."
+    },
+    {
+      "id": "CONFIRMATION_FIT",
+      "name": "Correct confirmation points",
+      "measurement": "Score whether high-impact decisions were surfaced while clear low-risk work proceeded autonomously."
+    },
+    {
+      "id": "SCOPE_CONTROL",
+      "name": "Controlled cross-context use",
+      "measurement": "Count rules applied outside their stated task, object, project, or phase scope."
+    },
+    {
+      "id": "TRACEABILITY",
+      "name": "Memory explainability",
+      "measurement": "Verify that consequential remembered behavior cites a rule and its recorded evidence."
+    }
+  ]
+}
+

@@ -105,6 +105,7 @@ export interface Task {
   lastError: string | null;
   artifacts: ArtifactRef[];
   contextCapsule?: ContextCapsule;
+  workspacePath?: string;
 }
 
 export interface TaskAttachment {

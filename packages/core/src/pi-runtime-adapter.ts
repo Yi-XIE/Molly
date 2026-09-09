@@ -109,12 +109,12 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
     return this.modelRuntimePromise;
   }
 
-  private guardExtension(taskId: string): InlineExtension {
+  private guardExtension(taskId: string, workspaceRoot: string): InlineExtension {
     return {
       name: 'molly-trust-boundary',
       factory: (pi) => {
         pi.on('tool_call', (event) => {
-          const decision = evaluateToolCall(event.toolName, event.input);
+          const decision = evaluateToolCall(event.toolName, event.input, { workspaceRoot });
           if (decision.allowed) return undefined;
           this.emit({
             type: 'protected',
@@ -142,7 +142,7 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
       cwd: this.options.cwd,
       agentDir: this.options.agentDir,
       settingsManager,
-      extensionFactories: [this.guardExtension(task.id)],
+      extensionFactories: [this.guardExtension(task.id, task.workspacePath ?? this.options.cwd)],
       systemPromptOverride: (base) => [
         base ?? '',
         '你是 Molly，Yi 的个人成长与职业助理。把对话推进为清晰的任务、产物和复盘。',

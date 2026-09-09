@@ -38,7 +38,7 @@ export function inferToolTarget(input: Record<string, unknown>): string | null {
   return null;
 }
 
-export function evaluateToolCall(toolName: string, input: Record<string, unknown>): ToolDecision {
+export function evaluateToolCall(toolName: string, input: Record<string, unknown>, options: { workspaceRoot?: string } = {}): ToolDecision {
   const serialized = stringifyInput(input);
   const target = inferToolTarget(input);
   const namedProtected = PROTECTED_TOOL_NAMES.has(toolName.toLowerCase());
@@ -54,6 +54,15 @@ export function evaluateToolCall(toolName: string, input: Record<string, unknown
     };
   }
 
+  if (options.workspaceRoot && target && isAbsolute(target)) {
+    const root = resolve(options.workspaceRoot);
+    const destination = resolve(target);
+    const escape = relative(root, destination).startsWith('..');
+    if (escape) {
+      return { allowed: false, protected: true, reason: '工具目标超出当前工作项目录，需要 Yi 明确确认。', target };
+    }
+  }
+
   return { allowed: true, protected: false, reason: null, target };
 }
 
@@ -65,3 +74,4 @@ export function wrapExternalContent(content: string, source: string): string {
     '</external-data>',
   ].join('\n');
 }
+import { isAbsolute, resolve, relative } from 'node:path';

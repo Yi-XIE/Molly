@@ -123,6 +123,7 @@ export class TaskService {
       updatedAt: now,
       lastError: null,
       artifacts: [],
+      workspacePath: workItem?.workspacePath,
     };
     const result = this.repository.createTask(task, input);
     if (result.created) {

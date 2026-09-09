@@ -192,6 +192,8 @@ describe('Molly core', () => {
   it('blocks protected tools and allows ordinary file work', () => {
     expect(evaluateToolCall('payment', { amount: 1 }).protected).toBe(true);
     expect(evaluateToolCall('powershell', { command: 'Get-ChildItem C:\\work' }).allowed).toBe(true);
+    expect(evaluateToolCall('read_file', { path: 'C:\\outside\\secret.txt' }, { workspaceRoot: 'C:\\work-item' }).allowed).toBe(false);
+    expect(evaluateToolCall('read_file', { path: 'C:\\work-item\\notes.txt' }, { workspaceRoot: 'C:\\work-item' }).allowed).toBe(true);
   });
 
   it('supports memory correction and soft deletion', async () => {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import type { ArtifactRef, Task, TaskSnapshot, TaskStatus } from '@molly/contracts';
+import type { ArtifactRef, RouteDecision, Task, TaskSnapshot, TaskStatus } from '@molly/contracts';
 import type { TaskServiceEvent } from '@molly/core';
 
 const STATUS_COPY: Record<TaskStatus, { label: string; tone: string }> = {
@@ -193,6 +193,7 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [streaming, setStreaming] = useState<Record<string, string>>({});
   const [runtimeLabel, setRuntimeLabel] = useState('正在连接');
+  const [focusNotice, setFocusNotice] = useState<string | null>(null);
   const selectionVersion = useRef(0);
 
   const loadTasks = useCallback(async (query = search) => {
@@ -245,6 +246,7 @@ export function App() {
     setSnapshot(null);
     setDraft('');
     setError(null);
+    setFocusNotice(null);
   }, []);
 
   const submit = useCallback(async (event?: FormEvent) => {
@@ -255,8 +257,22 @@ export function App() {
     setError(null);
     setDraft('');
     try {
-      const next = selectedId
-        ? await window.molly.steerTask(selectedId, text) as TaskSnapshot
+      let route: RouteDecision | null = null;
+      let targetTaskId = selectedId;
+      if (selectedId && snapshot?.task.workItemId) {
+        route = await window.molly.routeFocus(snapshot.task.workItemId, text) as RouteDecision;
+        if (route.action === 'switch' && route.toWorkItemId) {
+          const candidate = (await window.molly.listTasks('')) as Task[];
+          targetTaskId = candidate.find((task) => task.workItemId === route?.toWorkItemId)?.id ?? null;
+          setFocusNotice(`已切换到：${candidate.find((task) => task.id === targetTaskId)?.title ?? '新的当前焦点'}`);
+        } else if (route.action === 'ask') {
+          setFocusNotice('这条内容可能属于另一个焦点，当前先留在这里。');
+        } else {
+          setFocusNotice(null);
+        }
+      }
+      const next = targetTaskId
+        ? await window.molly.steerTask(targetTaskId, text) as TaskSnapshot
         : await window.molly.createTask(text) as TaskSnapshot;
       setSelectedId(next.task.id);
       setSnapshot(next);
@@ -304,6 +320,7 @@ export function App() {
         {snapshot ? <Conversation snapshot={snapshot} streaming={streaming[snapshot.task.id] ?? ''} /> : <EmptyConversation onPrompt={setDraft} />}
         <form className="composer" onSubmit={submit}>
           {error && <div className="composer-error">{error}</div>}
+          {focusNotice && <div className="focus-notice">{focusNotice}</div>}
           <div className="composer-inner">
             <textarea
               value={draft}

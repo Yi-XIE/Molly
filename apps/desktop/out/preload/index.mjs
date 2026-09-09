@@ -8,6 +8,7 @@ const api = {
   stopAll: () => ipcRenderer.invoke("molly:tasks:stop-all"),
   listWorkItems: () => ipcRenderer.invoke("molly:work-items:list"),
   getWorkItem: (workItemId) => ipcRenderer.invoke("molly:work-items:get", workItemId),
+  routeFocus: (currentWorkItemId, text) => ipcRenderer.invoke("molly:focus:route", currentWorkItemId, text),
   openArtifact: (ref) => ipcRenderer.invoke("molly:artifacts:open", ref),
   runtimeInfo: () => ipcRenderer.invoke("molly:runtime:info"),
   onTaskEvent: (listener) => {

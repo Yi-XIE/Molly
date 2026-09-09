@@ -1,10 +1,11 @@
 import { EventEmitter } from 'node:events';
-import type { ArtifactRef, Task, TaskInput, TaskSnapshot } from '@molly/contracts';
+import type { ArtifactRef, RouteDecision, Task, TaskInput, TaskSnapshot } from '@molly/contracts';
 import { taskInputSchema, taskTitle } from '@molly/contracts';
 import { createId } from './ids.js';
 import type { RuntimeAdapter, RuntimeUpdate } from './runtime.js';
 import { TaskRepository } from './task-repository.js';
 import { WorkItemRepository } from './work-item-repository.js';
+import { IntentRouter } from './intent-router.js';
 
 export type TaskServiceEvent =
   | { type: 'snapshot'; snapshot: TaskSnapshot }
@@ -21,6 +22,7 @@ export class TaskService {
   private readonly emitter = new EventEmitter();
   private readonly running = new Set<string>();
   private readonly runtimeUnsubscribe: () => void;
+  private readonly router = new IntentRouter();
 
   constructor(
     readonly repository: TaskRepository,
@@ -70,6 +72,18 @@ export class TaskService {
     } else {
       this.emitter.emit('event', { type: 'runtime', update } satisfies TaskServiceEvent);
     }
+  }
+
+  route(inputValue: TaskInput, currentWorkItemId: string): RouteDecision {
+    const input = taskInputSchema.parse(inputValue);
+    const cards = this.workItems?.cards() ?? [];
+    const current = cards.find((card) => card.id === currentWorkItemId);
+    if (!current) return { action: 'continue', fromWorkItemId: currentWorkItemId, toWorkItemId: null, confidence: 0, reason: '当前工作项不存在，保持当前任务' };
+    return this.router.decide(input.text, current, cards);
+  }
+
+  taskForWorkItem(workItemId: string): Task | null {
+    return this.repository.listTasks().find((task) => task.workItemId === workItemId) ?? null;
   }
 
   create(inputValue: TaskInput, options: CreateTaskOptions = {}): TaskSnapshot {

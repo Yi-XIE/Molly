@@ -64,6 +64,10 @@ function registerIpc(service: TaskService, runtimeMode: string): void {
     if (typeof workItemId !== 'string') throw new Error('工作项编号无效。');
     return workItemRepository?.get(workItemId) ?? null;
   });
+  ipcMain.handle('molly:focus:route', (_event, currentWorkItemId: unknown, text: unknown) => {
+    if (typeof currentWorkItemId !== 'string' || typeof text !== 'string' || !text.trim()) throw new Error('焦点路由参数无效。');
+    return service.route(createTaskInput(text.trim()), currentWorkItemId);
+  });
   ipcMain.handle('molly:runtime:info', () => ({
     mode: runtimeMode,
     label: runtimeMode === 'preview' ? '预览运行' : 'Pi Runtime',

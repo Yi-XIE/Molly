@@ -12628,6 +12628,7 @@ function App() {
   const [error, setError] = reactExports.useState(null);
   const [streaming, setStreaming] = reactExports.useState({});
   const [runtimeLabel, setRuntimeLabel] = reactExports.useState("正在连接");
+  const [focusNotice, setFocusNotice] = reactExports.useState(null);
   const selectionVersion = reactExports.useRef(0);
   const loadTasks = reactExports.useCallback(async (query = search) => {
     const list = await window.molly.listTasks(query);
@@ -12674,6 +12675,7 @@ function App() {
     setSnapshot(null);
     setDraft("");
     setError(null);
+    setFocusNotice(null);
   }, []);
   const submit = reactExports.useCallback(async (event) => {
     event?.preventDefault();
@@ -12683,7 +12685,21 @@ function App() {
     setError(null);
     setDraft("");
     try {
-      const next = selectedId ? await window.molly.steerTask(selectedId, text) : await window.molly.createTask(text);
+      let route = null;
+      let targetTaskId = selectedId;
+      if (selectedId && snapshot?.task.workItemId) {
+        route = await window.molly.routeFocus(snapshot.task.workItemId, text);
+        if (route.action === "switch" && route.toWorkItemId) {
+          const candidate = await window.molly.listTasks("");
+          targetTaskId = candidate.find((task) => task.workItemId === route?.toWorkItemId)?.id ?? null;
+          setFocusNotice(`已切换到：${candidate.find((task) => task.id === targetTaskId)?.title ?? "新的当前焦点"}`);
+        } else if (route.action === "ask") {
+          setFocusNotice("这条内容可能属于另一个焦点，当前先留在这里。");
+        } else {
+          setFocusNotice(null);
+        }
+      }
+      const next = targetTaskId ? await window.molly.steerTask(targetTaskId, text) : await window.molly.createTask(text);
       setSelectedId(next.task.id);
       setSnapshot(next);
       await loadTasks("");
@@ -12744,6 +12760,7 @@ function App() {
       snapshot ? /* @__PURE__ */ jsxRuntimeExports.jsx(Conversation, { snapshot, streaming: streaming[snapshot.task.id] ?? "" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(EmptyConversation, { onPrompt: setDraft }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { className: "composer", onSubmit: submit, children: [
         error && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "composer-error", children: error }),
+        focusNotice && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "focus-notice", children: focusNotice }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "composer-inner", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "textarea",

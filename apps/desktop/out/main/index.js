@@ -228,6 +228,10 @@ function registerIpc(service, runtimeMode) {
     if (typeof workItemId !== "string") throw new Error("工作项编号无效。");
     return workItemRepository?.get(workItemId) ?? null;
   });
+  ipcMain.handle("molly:focus:route", (_event, currentWorkItemId, text) => {
+    if (typeof currentWorkItemId !== "string" || typeof text !== "string" || !text.trim()) throw new Error("焦点路由参数无效。");
+    return service.route(createTaskInput(text.trim()), currentWorkItemId);
+  });
   ipcMain.handle("molly:runtime:info", () => ({
     mode: runtimeMode,
     label: runtimeMode === "preview" ? "预览运行" : "Pi Runtime"
@@ -248,7 +252,7 @@ async function createWindow() {
   const dataDir = join(app.getPath("userData"), "data");
   mkdirSync(dataDir, { recursive: true });
   const runtimeMode = process.env.MOLLY_RUNTIME_MODE ?? (app.isPackaged ? "pi" : "preview");
-  const runtime = runtimeMode === "preview" ? new PreviewRuntimeAdapter() : new (await import("@molly/core/pi-runtime-adapter.js")).PiRuntimeAdapter({
+  const runtime = runtimeMode === "preview" ? new PreviewRuntimeAdapter() : new (await import("@molly/core/pi-runtime-adapter")).PiRuntimeAdapter({
     cwd: root,
     agentDir: join(root, ".pi-home"),
     sessionDir: join(root, ".pi", "sessions")

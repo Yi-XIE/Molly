@@ -296,6 +296,7 @@ svg {
 .composer-foot button:disabled { opacity: .28; cursor: default; }
 .composer-foot button svg { width: 16px; }
 .composer-error { margin-bottom: 7px; padding: 9px 12px; font-size: 11px; }
+.focus-notice { margin-bottom: 7px; padding: 9px 12px; color: #365c47; background: #e5efe6; border: 1px solid rgba(54,92,71,.16); font-size: 11px; }
 .send-pulse { width: 7px; height: 7px; border-radius: 50%; background: currentColor; animation: sendPulse 1s infinite; }
 
 .artifact-panel {

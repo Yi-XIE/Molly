@@ -48,6 +48,22 @@ describe('Molly core', () => {
     expect(router.decide('切到职业规划', current, [current, career]).action).toBe('switch');
     expect(router.decide('这个方向也要想想', current, [current, career]).action).toBe('continue');
   });
+
+  it('exposes focus routing without reading sibling conversations', () => {
+    const database = new DatabaseSync(':memory:');
+    const directory = mkdtempSync(join(tmpdir(), 'molly-route-'));
+    const taskRepository = new TaskRepository(':memory:');
+    const workItems = new WorkItemRepository(database, directory);
+    const product = workItems.create({ title: '产品方案', goal: '整理产品方案' });
+    workItems.create({ title: '职业规划', goal: '整理职业方向' });
+    const service = new TaskService(taskRepository, new PreviewRuntimeAdapter(), workItems);
+    const decision = service.route(input('route-event', '切到职业规划继续'), product.id);
+    expect(decision.action).toBe('switch');
+    expect(decision.toWorkItemId).not.toBe(product.id);
+    void service.dispose();
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
   it('validates transport payloads before they enter the task service', () => {
     expect(() => taskInputSchema.parse({ eventId: 'e', source: 'desktop', senderId: 'yi', text: '', receivedAt: new Date().toISOString() })).toThrow();
     expect(() => taskEventSchema.parse({ id: 'e', taskId: 't', seq: 1, type: 'progress', summary: 'ok', progress: 2, artifacts: [], occurredAt: new Date().toISOString() })).toThrow();

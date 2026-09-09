@@ -12528,6 +12528,9 @@ function Conversation({ snapshot, streaming }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "conversation-scroll", children: [
     /* @__PURE__ */ jsxRuntimeExports.jsxs("header", { className: "conversation-header", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("p", { className: "eyebrow", children: [
+        "当前焦点：",
+        task.title,
+        " · ",
         task.origin === "feishu" ? "来自飞书" : "桌面任务",
         " · ",
         timeLabel(task.createdAt)

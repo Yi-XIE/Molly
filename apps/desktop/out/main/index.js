@@ -1,8 +1,7 @@
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { safeStorage, app, BrowserWindow, nativeTheme, ipcMain, shell } from "electron";
-import { generateNodeKeyPair, createId, decryptForNode, PreviewRuntimeAdapter, TaskService, TaskRepository } from "@molly/core";
-import { PiRuntimeAdapter } from "@molly/core/pi-runtime-adapter";
+import { generateNodeKeyPair, createId, decryptForNode, PreviewRuntimeAdapter, TaskRepository, WorkItemRepository, TaskService } from "@molly/core";
 import { nodeInboundFrameSchema, taskInputSchema } from "@molly/contracts";
 import WebSocket from "ws";
 import __cjs_mod__ from "node:module";
@@ -182,6 +181,7 @@ class GatewayNodeClient {
 let mainWindow = null;
 let taskService = null;
 let gatewayNodeClient = null;
+let workItemRepository = null;
 function projectRoot() {
   if (process.env.MOLLY_PROJECT_ROOT) return resolve(process.env.MOLLY_PROJECT_ROOT);
   if (app.isPackaged) return join(app.getPath("documents"), "Molly");
@@ -223,6 +223,11 @@ function registerIpc(service, runtimeMode) {
     await Promise.all(active.map((task) => service.cancel(task.id)));
     return { stopped: active.length };
   });
+  ipcMain.handle("molly:work-items:list", () => workItemRepository?.list("active") ?? []);
+  ipcMain.handle("molly:work-items:get", (_event, workItemId) => {
+    if (typeof workItemId !== "string") throw new Error("工作项编号无效。");
+    return workItemRepository?.get(workItemId) ?? null;
+  });
   ipcMain.handle("molly:runtime:info", () => ({
     mode: runtimeMode,
     label: runtimeMode === "preview" ? "预览运行" : "Pi Runtime"
@@ -243,12 +248,14 @@ async function createWindow() {
   const dataDir = join(app.getPath("userData"), "data");
   mkdirSync(dataDir, { recursive: true });
   const runtimeMode = process.env.MOLLY_RUNTIME_MODE ?? (app.isPackaged ? "pi" : "preview");
-  const runtime = runtimeMode === "preview" ? new PreviewRuntimeAdapter() : new PiRuntimeAdapter({
+  const runtime = runtimeMode === "preview" ? new PreviewRuntimeAdapter() : new (await import("@molly/core/pi-runtime-adapter.js")).PiRuntimeAdapter({
     cwd: root,
     agentDir: join(root, ".pi-home"),
     sessionDir: join(root, ".pi", "sessions")
   });
-  taskService = new TaskService(new TaskRepository(join(dataDir, "molly.db")), runtime);
+  const taskRepository = new TaskRepository(join(dataDir, "molly.db"));
+  workItemRepository = new WorkItemRepository(taskRepository.database, join(root, ".molly", "work-items"));
+  taskService = new TaskService(taskRepository, runtime, workItemRepository);
   gatewayNodeClient = new GatewayNodeClient({
     service: taskService,
     credentialsPath: join(dataDir, "gateway-node.json"),

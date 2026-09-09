@@ -35,7 +35,7 @@ describe('Molly core', () => {
   it('deduplicates repository inputs by event id', () => {
     const repository = new TaskRepository(':memory:');
     const task = {
-      id: 'task_test', title: '测试任务', origin: 'desktop' as const, conversationRef: null,
+      id: 'task_test', workItemId: 'work_test', interactionStreamId: 'stream_test', title: '测试任务', origin: 'desktop' as const, conversationRef: null,
       piSessionId: null, status: 'queued' as const, surface: 'conversation' as const,
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), lastError: null, artifacts: [],
     };
@@ -83,7 +83,7 @@ describe('Molly core', () => {
     const path = join(directory, 'molly.db');
     const first = new TaskRepository(path);
     const task = {
-      id: 'task_persist', title: '持久化任务', origin: 'desktop' as const, conversationRef: null,
+      id: 'task_persist', workItemId: 'work_persist', interactionStreamId: 'stream_persist', title: '持久化任务', origin: 'desktop' as const, conversationRef: null,
       piSessionId: 'session-1', status: 'completed' as const, surface: 'conversation' as const,
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), lastError: null, artifacts: [],
     };

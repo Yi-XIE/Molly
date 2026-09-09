@@ -31,9 +31,47 @@ export type TaskOrigin = 'desktop' | 'feishu';
 export type ArtifactKind = 'document' | 'web' | 'todo' | 'file' | 'note' | 'text';
 export type MessageRole = 'user' | 'assistant' | 'system';
 
+export type WorkItemStatus = 'active' | 'paused' | 'completed' | 'archived';
+
+export interface WorkItem {
+  id: string;
+  title: string;
+  goal: string;
+  status: WorkItemStatus;
+  parentId: string | null;
+  piSessionPath: string | null;
+  workspacePath: string;
+  currentSummary: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkItemCard {
+  id: string;
+  title: string;
+  goal: string;
+  tags: string[];
+  recentSummary: string;
+  lastActiveAt: string;
+}
+
+export interface ContextCapsule {
+  version: number;
+  workItemId: string;
+  goal: string;
+  confirmedFacts: string[];
+  confirmedDecisions: string[];
+  constraints: string[];
+  allowedArtifactIds: string[];
+  openQuestions: string[];
+  sources: Array<{ type: 'rule' | 'memory' | 'artifact' | 'work_item'; id: string; reason: string }>;
+  compiledAt: string;
+}
+
 export interface ArtifactRef {
   id: string;
   taskId: string;
+  workItemId: string;
   kind: ArtifactKind;
   title: string;
   mimeType: string | null;
@@ -45,6 +83,8 @@ export interface ArtifactRef {
 
 export interface Task {
   id: string;
+  workItemId: string;
+  interactionStreamId: string;
   title: string;
   origin: TaskOrigin;
   conversationRef: string | null;
@@ -92,6 +132,7 @@ export type TaskEventType =
 export interface TaskEvent {
   id: string;
   taskId: string;
+  workItemId: string;
   seq: number;
   type: TaskEventType;
   summary: string;
@@ -163,6 +204,7 @@ export const taskInputSchema = z.object({
 export const artifactRefSchema = z.object({
   id: z.string().min(1),
   taskId: z.string().min(1),
+  workItemId: z.string().min(1),
   kind: z.enum(['document', 'web', 'todo', 'file', 'note', 'text']),
   title: z.string().min(1),
   mimeType: z.string().nullable(),
@@ -175,6 +217,7 @@ export const artifactRefSchema = z.object({
 export const taskEventSchema = z.object({
   id: z.string().min(1),
   taskId: z.string().min(1),
+  workItemId: z.string().min(1),
   seq: z.number().int().positive(),
   type: z.enum(['created', 'queued', 'started', 'progress', 'message', 'artifact', 'waiting_input', 'completed', 'failed', 'canceled']),
   summary: z.string(),

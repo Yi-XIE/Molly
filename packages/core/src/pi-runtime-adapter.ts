@@ -49,11 +49,12 @@ function assistantSummary(session: AgentSession): string {
   return '任务已完成。';
 }
 
-function artifactsFromSummary(taskId: string, summary: string): ArtifactRef[] {
+function artifactsFromSummary(taskId: string, workItemId: string, summary: string): ArtifactRef[] {
   const now = new Date().toISOString();
   const artifacts: ArtifactRef[] = [{
     id: createId('artifact'),
     taskId,
+    workItemId,
     kind: 'text',
     title: 'Molly 的答复',
     mimeType: 'text/markdown',
@@ -68,6 +69,7 @@ function artifactsFromSummary(taskId: string, summary: string): ArtifactRef[] {
     artifacts.push({
       id: createId('artifact'),
       taskId,
+      workItemId,
       kind: isFeishuDoc ? 'document' : 'web',
       title: isFeishuDoc ? '飞书产物' : new URL(url).hostname,
       mimeType: 'text/html',
@@ -207,7 +209,7 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
       await active.session.prompt(input.text, { source: 'rpc' });
     }
     const summary = assistantSummary(active.session);
-    const artifacts = artifactsFromSummary(task.id, summary);
+    const artifacts = artifactsFromSummary(task.id, task.workItemId, summary);
     return { sessionId: active.session.sessionId, summary, artifacts };
   }
 

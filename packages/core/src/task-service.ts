@@ -74,6 +74,8 @@ export class TaskService {
     const now = new Date().toISOString();
     const task: Task = {
       id: options.taskId ?? input.taskId ?? createId('task'),
+      workItemId: input.taskId ?? options.taskId ?? createId('work_item'),
+      interactionStreamId: input.conversationRef ?? createId('stream'),
       title: taskTitle(input.text),
       origin: input.source,
       conversationRef: input.conversationRef,

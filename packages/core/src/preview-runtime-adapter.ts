@@ -35,6 +35,7 @@ export class PreviewRuntimeAdapter implements RuntimeAdapter {
     const artifact: ArtifactRef = {
       id: createId('artifact'),
       taskId: task.id,
+      workItemId: task.workItemId,
       kind: 'note',
       title: '任务行动卡',
       mimeType: 'text/markdown',

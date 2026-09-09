@@ -42,6 +42,8 @@ export class TaskRepository {
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS tasks (
         id TEXT PRIMARY KEY,
+        work_item_id TEXT NOT NULL DEFAULT '',
+        interaction_stream_id TEXT NOT NULL DEFAULT '',
         title TEXT NOT NULL,
         origin TEXT NOT NULL,
         conversation_ref TEXT,
@@ -86,6 +88,7 @@ export class TaskRepository {
       CREATE TABLE IF NOT EXISTS artifacts (
         id TEXT PRIMARY KEY,
         task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+        work_item_id TEXT NOT NULL DEFAULT '',
         kind TEXT NOT NULL,
         title TEXT NOT NULL,
         mime_type TEXT,
@@ -115,6 +118,11 @@ export class TaskRepository {
         deleted_at TEXT
       );
     `);
+    const taskColumns = this.database.prepare('PRAGMA table_info(tasks)').all() as Row[];
+    if (!taskColumns.some((column) => column.name === 'work_item_id')) this.database.exec("ALTER TABLE tasks ADD COLUMN work_item_id TEXT NOT NULL DEFAULT ''");
+    if (!taskColumns.some((column) => column.name === 'interaction_stream_id')) this.database.exec("ALTER TABLE tasks ADD COLUMN interaction_stream_id TEXT NOT NULL DEFAULT ''");
+    const artifactColumns = this.database.prepare('PRAGMA table_info(artifacts)').all() as Row[];
+    if (!artifactColumns.some((column) => column.name === 'work_item_id')) this.database.exec("ALTER TABLE artifacts ADD COLUMN work_item_id TEXT NOT NULL DEFAULT ''");
   }
 
   createTask(task: Task, input: TaskInput): { task: Task; created: boolean } {
@@ -129,11 +137,13 @@ export class TaskRepository {
     try {
       this.database.prepare(`
         INSERT INTO tasks (
-          id, title, origin, conversation_ref, pi_session_id, status, surface,
+          id, work_item_id, interaction_stream_id, title, origin, conversation_ref, pi_session_id, status, surface,
           created_at, updated_at, last_error
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         task.id,
+        task.workItemId,
+        task.interactionStreamId,
         task.title,
         task.origin,
         task.conversationRef,
@@ -227,6 +237,7 @@ export class TaskRepository {
     const event: TaskEvent = {
       id: createId('evt'),
       taskId,
+      workItemId: this.getTask(taskId)?.workItemId ?? taskId,
       seq: Number(row.max_seq ?? 0) + 1,
       type,
       summary,
@@ -253,11 +264,12 @@ export class TaskRepository {
   addArtifact(artifact: ArtifactRef): ArtifactRef {
     this.database.prepare(`
       INSERT OR REPLACE INTO artifacts (
-        id, task_id, kind, title, mime_type, local_ref, share_ref, preview_text, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, task_id, work_item_id, kind, title, mime_type, local_ref, share_ref, preview_text, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       artifact.id,
       artifact.taskId,
+      artifact.workItemId,
       artifact.kind,
       artifact.title,
       artifact.mimeType,
@@ -323,6 +335,7 @@ export class TaskRepository {
       events: eventRows.map((row) => ({
         id: asString(row.id),
         taskId: asString(row.task_id),
+        workItemId: task.workItemId,
         seq: Number(row.seq),
         type: asString(row.type) as TaskEventType,
         summary: asString(row.summary),
@@ -344,6 +357,8 @@ export class TaskRepository {
     const artifactRows = this.database.prepare('SELECT * FROM artifacts WHERE task_id = ? ORDER BY created_at DESC').all(asString(row.id)) as Row[];
     return {
       id: asString(row.id),
+      workItemId: asString(row.work_item_id) || asString(row.id),
+      interactionStreamId: asString(row.interaction_stream_id) || asString(row.conversation_ref) || asString(row.id),
       title: asString(row.title),
       origin: asString(row.origin) as Task['origin'],
       conversationRef: row.conversation_ref === null ? null : asString(row.conversation_ref),
@@ -356,6 +371,7 @@ export class TaskRepository {
       artifacts: artifactRows.map((artifact) => ({
         id: asString(artifact.id),
         taskId: asString(artifact.task_id),
+        workItemId: asString(artifact.work_item_id) || asString(row.work_item_id) || asString(row.id),
         kind: asString(artifact.kind) as ArtifactRef['kind'],
         title: asString(artifact.title),
         mimeType: artifact.mime_type === null ? null : asString(artifact.mime_type),

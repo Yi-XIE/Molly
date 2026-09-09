@@ -190,6 +190,50 @@ describe('Molly core', () => {
     await service.dispose();
   });
 
+  it('turns a product idea into a structured preview artifact', async () => {
+    const runtime = new PreviewRuntimeAdapter();
+    const task = {
+      id: 'preview-product', workItemId: 'work-product', interactionStreamId: 'stream-product', title: '产品想法', origin: 'desktop' as const,
+      conversationRef: null, piSessionId: null, status: 'queued' as const, surface: 'conversation' as const,
+      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), lastError: null, artifacts: [],
+    };
+    const result = await runtime.createTask(task, input('preview-product-event', '我想做一个帮助用户复盘成长的个人助手产品'));
+    expect(result.artifacts[0]?.kind).toBe('document');
+    expect(result.artifacts[0]?.title).toBe('产品方案草案');
+    expect(result.artifacts[0]?.previewText).toContain('首版目标');
+    await runtime.dispose();
+  });
+
+  it('queues steering input that arrives while a task is running', async () => {
+    const repository = new TaskRepository(':memory:');
+    const calls: string[] = [];
+    let releaseFirst: (() => void) | null = null;
+    const runtime = {
+      subscribe: () => () => undefined,
+      createTask: async (_task: any, taskInput: TaskInput) => {
+        calls.push(`create:${taskInput.text}`);
+        await new Promise<void>((resolve) => { releaseFirst = resolve; });
+        return { sessionId: 's', summary: '第一步完成', artifacts: [] };
+      },
+      steerTask: async (_task: any, taskInput: TaskInput) => {
+        calls.push(`steer:${taskInput.text}`);
+        return { sessionId: 's', summary: '补充已吸收', artifacts: [] };
+      },
+      cancelTask: async () => undefined,
+      dispose: async () => undefined,
+    } as any;
+    const service = new TaskService(repository, runtime);
+    const first = service.create(input('queued-steer-1', '先整理目标'));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    service.steer(first.task.id, input('queued-steer-2', '再补充验收标准'));
+    expect(service.get(first.task.id)?.task.status).toBe('running');
+    releaseFirst?.();
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    expect(calls).toEqual(['create:先整理目标', 'steer:再补充验收标准']);
+    expect(service.get(first.task.id)?.task.status).toBe('completed');
+    await service.dispose();
+  });
+
   it('keeps a protected task waiting for confirmation', async () => {
     const repository = new TaskRepository(':memory:');
     const listeners = new Set<(update: any) => void>();

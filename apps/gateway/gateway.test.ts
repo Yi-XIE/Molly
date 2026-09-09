@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { encryptForNode, generateNodeKeyPair } from '@molly/core';
 import { loadGatewayConfig } from './src/config.js';
-import { parseFeishuEvent, verifyFeishuSignature } from './src/feishu.js';
+import { buildTaskCard, parseFeishuEvent, verifyFeishuSignature } from './src/feishu.js';
 import { GatewayStore } from './src/store.js';
 import { createGatewayApp } from './src/app.js';
 
@@ -99,5 +99,12 @@ describe('Molly gateway boundaries', () => {
     expect((await app.request('http://gateway.test/healthz')).status).toBe(200);
     expect((await app.request('http://gateway.test/v1/nodes/pair', { method: 'POST', body: '{}' })).status).toBe(401);
     store.close();
+  });
+
+  it('changes the Feishu card action when Molly is paused', () => {
+    const card = buildTaskCard({ taskId: 'task-1', status: 'running', paused: true });
+    const action = ((card.body as { elements: Array<{ tag: string; actions?: Array<{ text: { content: string }; value: { action: string } }> }> }).elements.at(-1)?.actions ?? []).at(-1);
+    expect(action?.text.content).toBe('恢复 Molly');
+    expect(action?.value.action).toBe('resume');
   });
 });

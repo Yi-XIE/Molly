@@ -179,7 +179,7 @@ export class MollyGatewayService {
   ): Promise<void> {
     const task = this.store.getTask(taskId);
     if (!task) return;
-    const card = buildTaskCard({ taskId, status, summary, artifacts });
+    const card = buildTaskCard({ taskId, status, summary, artifacts, paused: this.store.isPaused() });
     if (task.cardMessageId) {
       await this.feishu.updateTaskCard(task.cardMessageId, card);
       return;

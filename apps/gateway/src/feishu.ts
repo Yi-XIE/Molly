@@ -162,6 +162,7 @@ export function buildTaskCard(input: {
   summary?: string;
   artifacts?: ArtifactRef[];
   event?: TaskEvent;
+  paused?: boolean;
 }): JsonRecord {
   const copy = statusCopy(input.status);
   const summary = safeCardText(input.summary || input.event?.summary || copy.detail);
@@ -178,9 +179,9 @@ export function buildTaskCard(input: {
   }
   actions.push({
     tag: 'button',
-    text: { tag: 'plain_text', content: '暂停 Molly' },
+    text: { tag: 'plain_text', content: input.paused ? '恢复 Molly' : '暂停 Molly' },
     type: 'default',
-    value: { action: 'pause', taskId: input.taskId },
+    value: { action: input.paused ? 'resume' : 'pause', taskId: input.taskId },
   });
   return {
     schema: '2.0',

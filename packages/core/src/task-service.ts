@@ -23,6 +23,7 @@ export interface CreateTaskOptions {
 export class TaskService {
   private readonly emitter = new EventEmitter();
   private readonly running = new Set<string>();
+  private readonly pendingSteers = new Map<string, TaskInput[]>();
   private readonly runtimeUnsubscribe: () => void;
   private readonly router = new IntentRouter();
   private readonly contextCompiler = new ContextCompiler();
@@ -150,10 +151,18 @@ export class TaskService {
     const input = taskInputSchema.parse({ ...inputValue, taskId });
     const appended = this.repository.appendInput(taskId, input);
     if (appended) {
-      this.repository.setStatus(taskId, 'queued');
-      this.repository.appendEvent(taskId, 'queued', '已收到补充信息', { progress: 0 });
-      this.notify(taskId);
-      void this.dispatch(taskId, input, true);
+      if (this.running.has(taskId)) {
+        const queue = this.pendingSteers.get(taskId) ?? [];
+        queue.push(input);
+        this.pendingSteers.set(taskId, queue);
+        this.repository.appendEvent(taskId, 'progress', '已排队补充信息，当前步骤完成后继续', { progress: null });
+        this.notify(taskId);
+      } else {
+        this.repository.setStatus(taskId, 'queued');
+        this.repository.appendEvent(taskId, 'queued', '已收到补充信息', { progress: 0 });
+        this.notify(taskId);
+        void this.dispatch(taskId, input, true);
+      }
     }
     const snapshot = this.repository.getSnapshot(taskId);
     if (!snapshot) throw new Error('任务更新后无法读取。');
@@ -164,6 +173,7 @@ export class TaskService {
     const task = this.repository.getTask(taskId);
     if (!task) throw new Error('找不到要停止的任务。');
     await this.runtime.cancelTask(taskId);
+    this.pendingSteers.delete(taskId);
     this.repository.setStatus(taskId, 'canceled');
     this.repository.appendEvent(taskId, 'canceled', '任务已停止');
     this.running.delete(taskId);
@@ -245,6 +255,15 @@ export class TaskService {
     } finally {
       this.running.delete(taskId);
       this.notify(taskId);
+      const queue = this.pendingSteers.get(taskId);
+      const queued = queue?.shift();
+      if (queued) {
+        if (queue?.length) this.pendingSteers.set(taskId, queue);
+        else this.pendingSteers.delete(taskId);
+        void this.dispatch(taskId, queued, true);
+      } else {
+        this.pendingSteers.delete(taskId);
+      }
     }
   }
 

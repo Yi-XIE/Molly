@@ -67,6 +67,15 @@ export class TaskService {
       this.repository.setStatus(update.taskId, 'waiting_input');
       this.repository.appendEvent(update.taskId, 'waiting_input', update.summary, { progress: null });
       this.notify(update.taskId);
+    } else if (update.type === 'compaction_start') {
+      this.repository.appendEvent(update.taskId, 'progress', update.summary, { progress: 0.32 });
+      this.notify(update.taskId);
+    } else if (update.type === 'compaction_end') {
+      this.repository.appendEvent(update.taskId, 'progress', update.summary, { progress: 0.38 });
+      this.notify(update.taskId);
+    } else if (update.type === 'compaction_failed') {
+      this.repository.appendEvent(update.taskId, 'progress', update.summary, { progress: null });
+      this.notify(update.taskId);
     } else if (update.type === 'artifact') {
       this.repository.addArtifact(update.artifact);
       this.repository.appendEvent(update.taskId, 'artifact', update.artifact.title, { artifacts: [update.artifact] });

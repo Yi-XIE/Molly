@@ -7,6 +7,9 @@ export type RuntimeUpdate =
   | { type: 'tool_finished'; taskId: string; toolName: string; ok: boolean; target: string | null }
   | { type: 'assistant_delta'; taskId: string; delta: string }
   | { type: 'protected'; taskId: string; summary: string }
+  | { type: 'compaction_start'; taskId: string; summary: string }
+  | { type: 'compaction_end'; taskId: string; summary: string }
+  | { type: 'compaction_failed'; taskId: string; summary: string }
   | { type: 'artifact'; taskId: string; artifact: ArtifactRef };
 
 export interface RuntimeResult {

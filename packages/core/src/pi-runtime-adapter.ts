@@ -182,6 +182,14 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
         this.emit({ type: 'assistant_delta', taskId: task.id, delta: event.assistantMessageEvent.delta });
       } else if (event.type === 'agent_start') {
         this.emit({ type: 'thinking', taskId: task.id, summary: '正在理解你的目标' });
+      } else if (event.type === 'compaction_start') {
+        this.emit({ type: 'compaction_start', taskId: task.id, summary: '正在压缩上下文，保留当前焦点和已确认决策' });
+      } else if (event.type === 'compaction_end') {
+        if (event.errorMessage) {
+          this.emit({ type: 'compaction_failed', taskId: task.id, summary: `上下文压缩失败：${event.errorMessage}` });
+        } else {
+          this.emit({ type: 'compaction_end', taskId: task.id, summary: event.aborted ? '上下文压缩已中止，继续使用现有上下文' : '上下文压缩完成，已恢复当前焦点' });
+        }
       } else if (event.type === 'tool_execution_start') {
         const input = event.args && typeof event.args === 'object' ? event.args as Record<string, unknown> : {};
         const target = inferToolTarget(input);

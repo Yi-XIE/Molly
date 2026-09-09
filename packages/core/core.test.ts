@@ -73,6 +73,21 @@ describe('Molly core', () => {
     repository.close();
   });
 
+  it('does not create a second work item for a duplicate event', () => {
+    const database = new DatabaseSync(':memory:');
+    const directory = mkdtempSync(join(tmpdir(), 'molly-dedupe-'));
+    const repository = new TaskRepository(':memory:');
+    const workItems = new WorkItemRepository(database, directory);
+    const service = new TaskService(repository, new PreviewRuntimeAdapter(), workItems);
+    const first = service.create(input('work-event'), { autoRun: false });
+    const second = service.create(input('work-event'), { autoRun: false });
+    expect(second.task.id).toBe(first.task.id);
+    expect(workItems.list()).toHaveLength(1);
+    void service.dispose();
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
   it('runs preview tasks through completed state', async () => {
     const repository = new TaskRepository(':memory:');
     const service = new TaskService(repository, new PreviewRuntimeAdapter());

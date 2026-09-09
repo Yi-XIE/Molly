@@ -74,6 +74,11 @@ export class TaskService {
 
   create(inputValue: TaskInput, options: CreateTaskOptions = {}): TaskSnapshot {
     const input = taskInputSchema.parse(inputValue);
+    if (this.repository.hasInputEvent(input.eventId)) {
+      const existingTaskId = this.repository.findTaskIdByEvent(input.eventId);
+      const existing = existingTaskId ? this.repository.getSnapshot(existingTaskId) : null;
+      if (existing) return existing;
+    }
     const now = new Date().toISOString();
     const workItem = options.workItemId
       ? this.workItems?.get(options.workItemId)

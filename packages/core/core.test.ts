@@ -64,6 +64,29 @@ describe('Molly core', () => {
     database.close();
     rmSync(directory, { recursive: true, force: true });
   });
+
+  it('injects a compiled capsule before runtime execution', async () => {
+    const database = new DatabaseSync(':memory:');
+    const directory = mkdtempSync(join(tmpdir(), 'molly-capsule-'));
+    const taskRepository = new TaskRepository(':memory:');
+    const workItems = new WorkItemRepository(database, directory);
+    let received: any = null;
+    const runtime = {
+      subscribe: () => () => undefined,
+      createTask: async (task: any) => { received = task.contextCapsule; return { sessionId: 's', summary: 'ok', artifacts: [] }; },
+      steerTask: async (task: any) => { received = task.contextCapsule; return { sessionId: 's', summary: 'ok', artifacts: [] }; },
+      cancelTask: async () => undefined,
+      dispose: async () => undefined,
+    } as any;
+    const service = new TaskService(taskRepository, runtime, workItems);
+    service.create(input('capsule-event'), { autoRun: true });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(received?.version).toBe(1);
+    expect(received?.workItemId).toBeTruthy();
+    await service.dispose();
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
   it('validates transport payloads before they enter the task service', () => {
     expect(() => taskInputSchema.parse({ eventId: 'e', source: 'desktop', senderId: 'yi', text: '', receivedAt: new Date().toISOString() })).toThrow();
     expect(() => taskEventSchema.parse({ id: 'e', taskId: 't', seq: 1, type: 'progress', summary: 'ok', progress: 2, artifacts: [], occurredAt: new Date().toISOString() })).toThrow();

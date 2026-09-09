@@ -103,6 +103,7 @@ export interface Task {
   updatedAt: string;
   lastError: string | null;
   artifacts: ArtifactRef[];
+  contextCapsule?: ContextCapsule;
 }
 
 export interface TaskAttachment {

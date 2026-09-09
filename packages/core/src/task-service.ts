@@ -6,6 +6,7 @@ import type { RuntimeAdapter, RuntimeUpdate } from './runtime.js';
 import { TaskRepository } from './task-repository.js';
 import { WorkItemRepository } from './work-item-repository.js';
 import { IntentRouter } from './intent-router.js';
+import { ContextCompiler } from './context-compiler.js';
 
 export type TaskServiceEvent =
   | { type: 'snapshot'; snapshot: TaskSnapshot }
@@ -23,6 +24,7 @@ export class TaskService {
   private readonly running = new Set<string>();
   private readonly runtimeUnsubscribe: () => void;
   private readonly router = new IntentRouter();
+  private readonly contextCompiler = new ContextCompiler();
 
   constructor(
     readonly repository: TaskRepository,
@@ -178,9 +180,13 @@ export class TaskService {
     this.notify(taskId);
 
     try {
+      const workItem = this.workItems?.get(task.workItemId);
+      const runtimeTask = workItem
+        ? { ...task, contextCapsule: this.contextCompiler.compile({ workItem }) }
+        : task;
       const result = steer
-        ? await this.runtime.steerTask(task, input)
-        : await this.runtime.createTask(task, input);
+        ? await this.runtime.steerTask(runtimeTask, input)
+        : await this.runtime.createTask(runtimeTask, input);
       this.repository.setPiSession(taskId, result.sessionId);
       this.repository.appendMessage(taskId, 'assistant', result.summary);
       const storedArtifacts: ArtifactRef[] = [];

@@ -77,7 +77,7 @@ export function createGatewayApp(config: GatewayConfig, service: MollyGatewaySer
       return context.json({ toast: { type: 'success', content: '任务已经停止。' } });
     }
     const paused = action.action === 'pause';
-    service.setPaused(paused);
+    await service.setPaused(paused);
     return context.json({
       toast: {
         type: 'success',

@@ -140,9 +140,21 @@ export class MollyGatewayService {
     return true;
   }
 
-  setPaused(paused: boolean): void {
+  async setPaused(paused: boolean): Promise<void> {
     this.store.setPaused(paused);
     for (const [nodeId] of this.connections) this.send(nodeId, { type: 'pause', paused });
+    await Promise.all(this.store.listTasks().filter((task) => task.cardMessageId).map(async (task) => {
+      try {
+        await this.updateFeishuCard(
+          task.id,
+          task.status,
+          null,
+          paused ? 'Molly 已暂停，已有任务会在恢复后继续。' : 'Molly 已恢复，任务可以继续执行。',
+        );
+      } catch {
+        // The persisted pause state remains authoritative; a later task event retries the card update.
+      }
+    }));
     if (!paused) {
       for (const [nodeId, connection] of this.connections) {
         if (connection.ready) this.deliverPending(nodeId);

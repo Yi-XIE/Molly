@@ -226,6 +226,11 @@ export class GatewayStore {
     return row ? this.rowToTask(row) : null;
   }
 
+  listTasks(): GatewayTaskRecord[] {
+    const rows = this.database.prepare('SELECT * FROM gateway_tasks ORDER BY updated_at DESC').all() as Row[];
+    return rows.map((row) => this.rowToTask(row));
+  }
+
   setCardMessage(taskId: string, messageId: string): void {
     const now = new Date().toISOString();
     this.database.prepare('UPDATE gateway_tasks SET card_message_id = ?, updated_at = ? WHERE id = ?')

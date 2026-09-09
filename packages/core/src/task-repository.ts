@@ -353,6 +353,22 @@ export class TaskRepository {
     return this.findTaskIdByEvent(eventId) !== null;
   }
 
+  latestInput(taskId: string): TaskInput | null {
+    const row = this.database.prepare('SELECT * FROM task_inputs WHERE task_id = ? ORDER BY received_at DESC, rowid DESC LIMIT 1').get(taskId) as Row | undefined;
+    if (!row) return null;
+    return {
+      eventId: asString(row.event_id),
+      taskId,
+      source: asString(row.source) as TaskInput['source'],
+      senderId: asString(row.sender_id),
+      text: asString(row.text),
+      attachments: parseJson<TaskInput['attachments']>(row.attachments_json, []),
+      replyToMessageId: row.reply_to_message_id === null ? null : asString(row.reply_to_message_id),
+      conversationRef: row.conversation_ref === null ? null : asString(row.conversation_ref),
+      receivedAt: asString(row.received_at),
+    };
+  }
+
   getTask(taskId: string): Task | null {
     const row = this.database.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as Row | undefined;
     return row ? this.rowToTask(row) : null;

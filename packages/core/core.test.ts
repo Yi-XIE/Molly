@@ -234,6 +234,24 @@ describe('Molly core', () => {
     await service.dispose();
   });
 
+  it('recovers queued tasks from the latest persisted input', async () => {
+    const repository = new TaskRepository(':memory:');
+    const calls: string[] = [];
+    const runtime = {
+      subscribe: () => () => undefined,
+      createTask: async (_task: any, taskInput: TaskInput) => { calls.push(`create:${taskInput.text}`); return { sessionId: 'recovered-session', summary: '恢复完成', artifacts: [] }; },
+      steerTask: async (_task: any, taskInput: TaskInput) => { calls.push(`steer:${taskInput.text}`); return { sessionId: 'recovered-session', summary: '恢复完成', artifacts: [] }; },
+      cancelTask: async () => undefined,
+      dispose: async () => undefined,
+    } as any;
+    const service = new TaskService(repository, runtime);
+    const created = service.create(input('recovery-event', '恢复这个产品方案'), { autoRun: false });
+    await service.recover();
+    expect(calls).toEqual(['create:恢复这个产品方案']);
+    expect(service.get(created.task.id)?.task.status).toBe('completed');
+    await service.dispose();
+  });
+
   it('keeps a protected task waiting for confirmation', async () => {
     const repository = new TaskRepository(':memory:');
     const listeners = new Set<(update: any) => void>();

@@ -200,6 +200,18 @@ export class TaskService {
     return this.repository.listTasks(query);
   }
 
+  async recover(): Promise<void> {
+    const resumable = this.repository.listTasks().filter((task) => task.status === 'queued' || task.status === 'running');
+    for (const task of resumable) {
+      const input = this.repository.latestInput(task.id);
+      if (!input) continue;
+      this.repository.setStatus(task.id, 'queued');
+      this.repository.appendEvent(task.id, 'progress', 'Molly 正在恢复这个任务', { progress: 0 });
+      this.notify(task.id);
+      await this.dispatch(task.id, input, Boolean(task.piSessionId));
+    }
+  }
+
   hasInputEvent(eventId: string): boolean {
     return this.repository.hasInputEvent(eventId);
   }

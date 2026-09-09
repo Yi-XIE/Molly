@@ -104,6 +104,7 @@ async function createWindow(): Promise<void> {
   const taskRepository = new TaskRepository(join(dataDir, 'molly.db'));
   workItemRepository = new WorkItemRepository(taskRepository.database, join(root, '.molly', 'work-items'));
   taskService = new TaskService(taskRepository, runtime, workItemRepository, new SqliteMemoryService(taskRepository.database));
+  void taskService.recover().catch((error) => console.error('[molly] task recovery failed:', error));
   gatewayNodeClient = new GatewayNodeClient({
     service: taskService,
     credentialsPath: join(dataDir, 'gateway-node.json'),

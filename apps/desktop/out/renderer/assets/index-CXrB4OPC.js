@@ -12521,7 +12521,7 @@ function EmptyConversation({ onPrompt }) {
     /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "prompt-row", children: prompts.map((prompt) => /* @__PURE__ */ jsxRuntimeExports.jsx("button", { onClick: () => onPrompt(prompt), children: prompt }, prompt)) })
   ] });
 }
-function Conversation({ snapshot, streaming }) {
+function Conversation({ snapshot, streaming, onCancel }) {
   if (!snapshot) return null;
   const { task, messages, events } = snapshot;
   const latestEvent = events.at(-1);
@@ -12536,9 +12536,15 @@ function Conversation({ snapshot, streaming }) {
         timeLabel(task.createdAt)
       ] }),
       /* @__PURE__ */ jsxRuntimeExports.jsx("h1", { children: task.title }),
-      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `status-pill ${STATUS_COPY[task.status].tone}`, children: [
-        /* @__PURE__ */ jsxRuntimeExports.jsx("span", {}),
-        STATUS_COPY[task.status].label
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "conversation-state", children: [
+        /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: `status-pill ${STATUS_COPY[task.status].tone}`, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", {}),
+          STATUS_COPY[task.status].label
+        ] }),
+        ["queued", "running", "waiting_input"].includes(task.status) && /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "stop-current", onClick: onCancel, children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx(StopIcon, {}),
+          "停止"
+        ] })
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "message-stack", children: [
@@ -12565,13 +12571,23 @@ function Conversation({ snapshot, streaming }) {
 function ArtifactCard({ artifact, active, onSelect }) {
   return /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: `artifact-tab ${active ? "active" : ""}`, onClick: onSelect, children: [
     /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: artifact.kind === "document" ? "文" : artifact.kind === "web" ? "网" : artifact.kind === "todo" ? "行" : "记" }),
-    /* @__PURE__ */ jsxRuntimeExports.jsx("strong", { children: artifact.title })
+    /* @__PURE__ */ jsxRuntimeExports.jsxs("strong", { children: [
+      artifact.title,
+      /* @__PURE__ */ jsxRuntimeExports.jsxs("small", { children: [
+        "v",
+        artifact.version
+      ] })
+    ] })
   ] });
 }
 function ArtifactPanel({ snapshot }) {
   const artifacts = snapshot?.task.artifacts ?? [];
   const [selectedId, setSelectedId] = reactExports.useState(null);
   const selected = artifacts.find((item) => item.id === selectedId) ?? artifacts[0] ?? null;
+  const latestVersion = selected ? Math.max(...artifacts.filter((item) => item.kind === selected.kind && item.title === selected.title).map((item) => item.version)) : 0;
+  const canRestore = selected !== null && selected.version < latestVersion;
+  const [restoring, setRestoring] = reactExports.useState(false);
+  const [restoreError, setRestoreError] = reactExports.useState(null);
   reactExports.useEffect(() => {
     if (!artifacts.some((item) => item.id === selectedId)) setSelectedId(artifacts[0]?.id ?? null);
   }, [artifacts, selectedId]);
@@ -12588,7 +12604,11 @@ function ArtifactPanel({ snapshot }) {
       selected && /* @__PURE__ */ jsxRuntimeExports.jsxs("article", { className: "artifact-preview", children: [
         /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "paper-pin" }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "preview-meta", children: [
-          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: selected.kind }),
+          /* @__PURE__ */ jsxRuntimeExports.jsxs("span", { children: [
+            selected.kind,
+            " · v",
+            selected.version
+          ] }),
           /* @__PURE__ */ jsxRuntimeExports.jsx("time", { children: timeLabel(selected.createdAt) })
         ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsx("h3", { children: selected.title }),
@@ -12596,7 +12616,21 @@ function ArtifactPanel({ snapshot }) {
         (selected.shareRef || selected.localRef) && /* @__PURE__ */ jsxRuntimeExports.jsxs("button", { className: "open-artifact", onClick: () => void window.molly.openArtifact(selected.shareRef ?? selected.localRef ?? ""), children: [
           "打开完整产物 ",
           /* @__PURE__ */ jsxRuntimeExports.jsx(ExternalIcon, {})
-        ] })
+        ] }),
+        canRestore && snapshot && /* @__PURE__ */ jsxRuntimeExports.jsx(
+          "button",
+          {
+            className: "restore-artifact",
+            disabled: restoring,
+            onClick: () => {
+              setRestoring(true);
+              setRestoreError(null);
+              void window.molly.restoreArtifact(snapshot.task.id, selected.id).then((next) => setSelectedId(next.task.artifacts[0]?.id ?? null)).catch((reason) => setRestoreError(reason instanceof Error ? reason.message : String(reason))).finally(() => setRestoring(false));
+            },
+            children: restoring ? "正在恢复…" : "恢复为当前版本"
+          }
+        ),
+        restoreError && /* @__PURE__ */ jsxRuntimeExports.jsx("p", { className: "artifact-error", children: restoreError })
       ] })
     ] }) : /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "artifact-empty", children: [
       /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "empty-sheet", children: [
@@ -12629,6 +12663,7 @@ function App() {
   const [streaming, setStreaming] = reactExports.useState({});
   const [runtimeLabel, setRuntimeLabel] = reactExports.useState("正在连接");
   const [focusNotice, setFocusNotice] = reactExports.useState(null);
+  const [focusUndoTaskId, setFocusUndoTaskId] = reactExports.useState(null);
   const selectionVersion = reactExports.useRef(0);
   const loadTasks = reactExports.useCallback(async (query = search) => {
     const list = await window.molly.listTasks(query);
@@ -12688,6 +12723,7 @@ function App() {
     setDraft("");
     setError(null);
     setFocusNotice(null);
+    setFocusUndoTaskId(null);
   }, []);
   const submit = reactExports.useCallback(async (event) => {
     event?.preventDefault();
@@ -12705,10 +12741,13 @@ function App() {
           const candidate = await window.molly.listTasks("");
           targetTaskId = candidate.find((task) => task.workItemId === route?.toWorkItemId)?.id ?? null;
           setFocusNotice(`已切换到：${candidate.find((task) => task.id === targetTaskId)?.title ?? "新的当前焦点"}`);
+          setFocusUndoTaskId(selectedId);
         } else if (route.action === "ask") {
           setFocusNotice("这条内容可能属于另一个焦点，当前先留在这里。");
+          setFocusUndoTaskId(null);
         } else {
           setFocusNotice(null);
+          setFocusUndoTaskId(null);
         }
       }
       const next = targetTaskId ? await window.molly.steerTask(targetTaskId, text) : await window.molly.createTask(text);
@@ -12769,10 +12808,23 @@ function App() {
       ] })
     ] }),
     /* @__PURE__ */ jsxRuntimeExports.jsxs("section", { className: "conversation-panel", children: [
-      snapshot ? /* @__PURE__ */ jsxRuntimeExports.jsx(Conversation, { snapshot, streaming: streaming[snapshot.task.id] ?? "" }) : /* @__PURE__ */ jsxRuntimeExports.jsx(EmptyConversation, { onPrompt: setDraft }),
+      snapshot ? /* @__PURE__ */ jsxRuntimeExports.jsx(
+        Conversation,
+        {
+          snapshot,
+          streaming: streaming[snapshot.task.id] ?? "",
+          onCancel: () => void window.molly.cancelTask(snapshot.task.id).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)))
+        }
+      ) : /* @__PURE__ */ jsxRuntimeExports.jsx(EmptyConversation, { onPrompt: setDraft }),
       /* @__PURE__ */ jsxRuntimeExports.jsxs("form", { className: "composer", onSubmit: submit, children: [
         error && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "composer-error", children: error }),
-        focusNotice && /* @__PURE__ */ jsxRuntimeExports.jsx("div", { className: "focus-notice", children: focusNotice }),
+        focusNotice && /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "focus-notice", children: [
+          /* @__PURE__ */ jsxRuntimeExports.jsx("span", { children: focusNotice }),
+          focusUndoTaskId && /* @__PURE__ */ jsxRuntimeExports.jsx("button", { type: "button", onClick: () => void selectTask(focusUndoTaskId).then(() => {
+            setFocusNotice(null);
+            setFocusUndoTaskId(null);
+          }), children: "撤回" })
+        ] }),
         /* @__PURE__ */ jsxRuntimeExports.jsxs("div", { className: "composer-inner", children: [
           /* @__PURE__ */ jsxRuntimeExports.jsx(
             "textarea",

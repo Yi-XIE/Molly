@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { safeStorage, app, BrowserWindow, nativeTheme, ipcMain, shell } from "electron";
-import { generateNodeKeyPair, createId, decryptForNode, PreviewRuntimeAdapter, TaskRepository, WorkItemRepository, TaskService } from "@molly/core";
+import { generateNodeKeyPair, createId, decryptForNode, PreviewRuntimeAdapter, TaskRepository, WorkItemRepository, TaskService, SqliteMemoryService } from "@molly/core";
 import { nodeInboundFrameSchema, taskInputSchema } from "@molly/contracts";
 import WebSocket from "ws";
 import __cjs_mod__ from "node:module";
@@ -245,6 +245,10 @@ function registerIpc(service, runtimeMode) {
     shell.showItemInFolder(resolve(ref));
     return true;
   });
+  ipcMain.handle("molly:artifacts:restore", (_event, taskId, artifactId) => {
+    if (typeof taskId !== "string" || typeof artifactId !== "string") throw new Error("产物版本参数无效。");
+    return service.restoreArtifact(taskId, artifactId);
+  });
 }
 async function createWindow() {
   const root = projectRoot();
@@ -259,7 +263,7 @@ async function createWindow() {
   });
   const taskRepository = new TaskRepository(join(dataDir, "molly.db"));
   workItemRepository = new WorkItemRepository(taskRepository.database, join(root, ".molly", "work-items"));
-  taskService = new TaskService(taskRepository, runtime, workItemRepository);
+  taskService = new TaskService(taskRepository, runtime, workItemRepository, new SqliteMemoryService(taskRepository.database));
   gatewayNodeClient = new GatewayNodeClient({
     service: taskService,
     credentialsPath: join(dataDir, "gateway-node.json"),

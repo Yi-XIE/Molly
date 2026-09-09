@@ -7,6 +7,7 @@ import { TaskRepository } from './task-repository.js';
 import { WorkItemRepository } from './work-item-repository.js';
 import { IntentRouter } from './intent-router.js';
 import { ContextCompiler } from './context-compiler.js';
+import type { MemoryService } from './memory-service.js';
 
 export type TaskServiceEvent =
   | { type: 'snapshot'; snapshot: TaskSnapshot }
@@ -30,6 +31,7 @@ export class TaskService {
     readonly repository: TaskRepository,
     private readonly runtime: RuntimeAdapter,
     private readonly workItems?: WorkItemRepository,
+    private readonly memory?: MemoryService,
   ) {
     this.runtimeUnsubscribe = runtime.subscribe((update) => this.handleRuntimeUpdate(update));
   }
@@ -169,6 +171,17 @@ export class TaskService {
     return this.get(taskId) as TaskSnapshot;
   }
 
+  restoreArtifact(taskId: string, artifactId: string): TaskSnapshot {
+    const task = this.repository.getTask(taskId);
+    if (!task) throw new Error('找不到产物所属任务。');
+    const restored = this.repository.restoreArtifact(taskId, artifactId);
+    this.repository.appendEvent(taskId, 'artifact', `已将 ${restored.title} v${restored.version} 设为当前版本`, {
+      artifacts: [restored],
+    });
+    this.notify(taskId);
+    return this.get(taskId) as TaskSnapshot;
+  }
+
   get(taskId: string): TaskSnapshot | null {
     return this.repository.getSnapshot(taskId);
   }
@@ -192,14 +205,26 @@ export class TaskService {
 
     try {
       const workItem = this.workItems?.get(task.workItemId);
-      const runtimeTask = workItem
-        ? { ...task, contextCapsule: this.contextCompiler.compile({ workItem }) }
-        : task;
+      let runtimeTask = task;
+      if (workItem) {
+        let confirmedMemories: Array<{ id: string; content: string }> = [];
+        try {
+          const recalled = this.memory ? await this.memory.recall(input.text, { workItemId: workItem.id }) : [];
+          confirmedMemories = recalled.filter((memory) => memory.confidence >= 0.8).map((memory) => ({ id: memory.id, content: memory.content }));
+        } catch {
+          confirmedMemories = [];
+        }
+        runtimeTask = {
+          ...task,
+          contextCapsule: this.contextCompiler.compile({ workItem, confirmedMemories }),
+        };
+      }
       const result = steer
         ? await this.runtime.steerTask(runtimeTask, input)
         : await this.runtime.createTask(runtimeTask, input);
       this.repository.setPiSession(taskId, result.sessionId);
       this.repository.appendMessage(taskId, 'assistant', result.summary);
+      if (workItem) this.workItems?.update(workItem.id, { currentSummary: result.summary.slice(0, 1200) });
       const storedArtifacts: ArtifactRef[] = [];
       for (const artifact of result.artifacts) storedArtifacts.push(this.repository.addArtifact(artifact));
       const current = this.repository.getTask(taskId);

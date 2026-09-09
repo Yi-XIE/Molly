@@ -113,6 +113,8 @@ export class TaskRepository {
         content TEXT NOT NULL,
         source TEXT NOT NULL,
         confidence REAL NOT NULL,
+        scope TEXT NOT NULL DEFAULT 'global',
+        work_item_id TEXT,
         created_at TEXT NOT NULL,
         updated_at TEXT NOT NULL,
         superseded_by TEXT,
@@ -125,6 +127,9 @@ export class TaskRepository {
     const artifactColumns = this.database.prepare('PRAGMA table_info(artifacts)').all() as Row[];
     if (!artifactColumns.some((column) => column.name === 'work_item_id')) this.database.exec("ALTER TABLE artifacts ADD COLUMN work_item_id TEXT NOT NULL DEFAULT ''");
     if (!artifactColumns.some((column) => column.name === 'version')) this.database.exec("ALTER TABLE artifacts ADD COLUMN version INTEGER NOT NULL DEFAULT 1");
+    const memoryColumns = this.database.prepare('PRAGMA table_info(memories)').all() as Row[];
+    if (!memoryColumns.some((column) => column.name === 'scope')) this.database.exec("ALTER TABLE memories ADD COLUMN scope TEXT NOT NULL DEFAULT 'global'");
+    if (!memoryColumns.some((column) => column.name === 'work_item_id')) this.database.exec('ALTER TABLE memories ADD COLUMN work_item_id TEXT');
   }
 
   createTask(task: Task, input: TaskInput): { task: Task; created: boolean } {
@@ -264,10 +269,16 @@ export class TaskRepository {
   }
 
   addArtifact(artifact: ArtifactRef): ArtifactRef {
-    const row = this.database.prepare('SELECT COALESCE(MAX(version), 0) AS max_version FROM artifacts WHERE work_item_id = ?').get(artifact.workItemId) as Row;
+    const existing = this.getArtifact(artifact.id);
+    if (existing) return existing;
+    const row = this.database.prepare(`
+      SELECT COALESCE(MAX(version), 0) AS max_version
+      FROM artifacts
+      WHERE work_item_id = ? AND kind = ? AND title = ?
+    `).get(artifact.workItemId, artifact.kind, artifact.title) as Row;
     const stored = { ...artifact, version: Math.max(artifact.version, Number(row.max_version ?? 0) + 1) };
     this.database.prepare(`
-      INSERT OR REPLACE INTO artifacts (
+      INSERT INTO artifacts (
         id, task_id, work_item_id, kind, title, mime_type, local_ref, share_ref, preview_text, version, created_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
@@ -284,6 +295,35 @@ export class TaskRepository {
       stored.createdAt,
     );
     return stored;
+  }
+
+  restoreArtifact(taskId: string, artifactId: string): ArtifactRef {
+    const source = this.getArtifact(artifactId);
+    if (!source || source.taskId !== taskId) throw new Error('找不到要恢复的产物版本。');
+    return this.addArtifact({
+      ...source,
+      id: createId('artifact'),
+      createdAt: new Date().toISOString(),
+      version: 1,
+    });
+  }
+
+  getArtifact(artifactId: string): ArtifactRef | null {
+    const row = this.database.prepare('SELECT * FROM artifacts WHERE id = ?').get(artifactId) as Row | undefined;
+    if (!row) return null;
+    return {
+      id: asString(row.id),
+      taskId: asString(row.task_id),
+      workItemId: asString(row.work_item_id) || asString(row.task_id),
+      kind: asString(row.kind) as ArtifactRef['kind'],
+      title: asString(row.title),
+      mimeType: row.mime_type === null ? null : asString(row.mime_type),
+      localRef: row.local_ref === null ? null : asString(row.local_ref),
+      shareRef: row.share_ref === null ? null : asString(row.share_ref),
+      previewText: row.preview_text === null ? null : asString(row.preview_text),
+      createdAt: asString(row.created_at),
+      version: Number(row.version ?? 1),
+    };
   }
 
   setStatus(taskId: string, status: TaskStatus, options: { error?: string | null; updatedAt?: string } = {}): void {

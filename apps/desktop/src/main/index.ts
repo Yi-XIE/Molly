@@ -4,6 +4,7 @@ import { app, BrowserWindow, ipcMain, nativeTheme, shell } from 'electron';
 import type { TaskInput } from '@molly/contracts';
 import {
   PreviewRuntimeAdapter,
+  SqliteMemoryService,
   TaskRepository,
   TaskService,
   WorkItemRepository,
@@ -81,6 +82,10 @@ function registerIpc(service: TaskService, runtimeMode: string): void {
     shell.showItemInFolder(resolve(ref));
     return true;
   });
+  ipcMain.handle('molly:artifacts:restore', (_event, taskId: unknown, artifactId: unknown) => {
+    if (typeof taskId !== 'string' || typeof artifactId !== 'string') throw new Error('产物版本参数无效。');
+    return service.restoreArtifact(taskId, artifactId);
+  });
 }
 
 async function createWindow(): Promise<void> {
@@ -98,7 +103,7 @@ async function createWindow(): Promise<void> {
     });
   const taskRepository = new TaskRepository(join(dataDir, 'molly.db'));
   workItemRepository = new WorkItemRepository(taskRepository.database, join(root, '.molly', 'work-items'));
-  taskService = new TaskService(taskRepository, runtime, workItemRepository);
+  taskService = new TaskService(taskRepository, runtime, workItemRepository, new SqliteMemoryService(taskRepository.database));
   gatewayNodeClient = new GatewayNodeClient({
     service: taskService,
     credentialsPath: join(dataDir, 'gateway-node.json'),

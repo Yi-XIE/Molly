@@ -82,7 +82,7 @@ function EmptyConversation({ onPrompt }: { onPrompt: (text: string) => void }) {
   );
 }
 
-function Conversation({ snapshot, streaming }: { snapshot: TaskSnapshot | null; streaming: string }) {
+function Conversation({ snapshot, streaming, onCancel }: { snapshot: TaskSnapshot | null; streaming: string; onCancel: () => void }) {
   if (!snapshot) return null;
   const { task, messages, events } = snapshot;
   const latestEvent = events.at(-1);
@@ -91,8 +91,13 @@ function Conversation({ snapshot, streaming }: { snapshot: TaskSnapshot | null; 
       <header className="conversation-header">
         <p className="eyebrow">当前焦点：{task.title} · {task.origin === 'feishu' ? '来自飞书' : '桌面任务'} · {timeLabel(task.createdAt)}</p>
         <h1>{task.title}</h1>
-        <div className={`status-pill ${STATUS_COPY[task.status].tone}`}>
-          <span />{STATUS_COPY[task.status].label}
+        <div className="conversation-state">
+          <div className={`status-pill ${STATUS_COPY[task.status].tone}`}>
+            <span />{STATUS_COPY[task.status].label}
+          </div>
+          {['queued', 'running', 'waiting_input'].includes(task.status) && (
+            <button className="stop-current" onClick={onCancel}><StopIcon />停止</button>
+          )}
         </div>
       </header>
       <div className="message-stack">
@@ -122,7 +127,7 @@ function ArtifactCard({ artifact, active, onSelect }: { artifact: ArtifactRef; a
   return (
     <button className={`artifact-tab ${active ? 'active' : ''}`} onClick={onSelect}>
       <span>{artifact.kind === 'document' ? '文' : artifact.kind === 'web' ? '网' : artifact.kind === 'todo' ? '行' : '记'}</span>
-      <strong>{artifact.title}</strong>
+      <strong>{artifact.title}<small>v{artifact.version}</small></strong>
     </button>
   );
 }
@@ -131,6 +136,12 @@ function ArtifactPanel({ snapshot }: { snapshot: TaskSnapshot | null }) {
   const artifacts = snapshot?.task.artifacts ?? [];
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = artifacts.find((item) => item.id === selectedId) ?? artifacts[0] ?? null;
+  const latestVersion = selected
+    ? Math.max(...artifacts.filter((item) => item.kind === selected.kind && item.title === selected.title).map((item) => item.version))
+    : 0;
+  const canRestore = selected !== null && selected.version < latestVersion;
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!artifacts.some((item) => item.id === selectedId)) setSelectedId(artifacts[0]?.id ?? null);
@@ -152,7 +163,7 @@ function ArtifactPanel({ snapshot }: { snapshot: TaskSnapshot | null }) {
           {selected && (
             <article className="artifact-preview">
               <div className="paper-pin" />
-              <div className="preview-meta"><span>{selected.kind}</span><time>{timeLabel(selected.createdAt)}</time></div>
+              <div className="preview-meta"><span>{selected.kind} · v{selected.version}</span><time>{timeLabel(selected.createdAt)}</time></div>
               <h3>{selected.title}</h3>
               {selected.previewText ? <div className="preview-text">{selected.previewText}</div> : <p className="preview-placeholder">产物已经准备好，可以在原位置打开。</p>}
               {(selected.shareRef || selected.localRef) && (
@@ -160,6 +171,23 @@ function ArtifactPanel({ snapshot }: { snapshot: TaskSnapshot | null }) {
                   打开完整产物 <ExternalIcon />
                 </button>
               )}
+              {canRestore && snapshot && (
+                <button
+                  className="restore-artifact"
+                  disabled={restoring}
+                  onClick={() => {
+                    setRestoring(true);
+                    setRestoreError(null);
+                    void window.molly.restoreArtifact(snapshot.task.id, selected.id)
+                      .then((next: TaskSnapshot) => setSelectedId(next.task.artifacts[0]?.id ?? null))
+                      .catch((reason: unknown) => setRestoreError(reason instanceof Error ? reason.message : String(reason)))
+                      .finally(() => setRestoring(false));
+                  }}
+                >
+                  {restoring ? '正在恢复…' : '恢复为当前版本'}
+                </button>
+              )}
+              {restoreError && <p className="artifact-error">{restoreError}</p>}
             </article>
           )}
         </>
@@ -194,6 +222,7 @@ export function App() {
   const [streaming, setStreaming] = useState<Record<string, string>>({});
   const [runtimeLabel, setRuntimeLabel] = useState('正在连接');
   const [focusNotice, setFocusNotice] = useState<string | null>(null);
+  const [focusUndoTaskId, setFocusUndoTaskId] = useState<string | null>(null);
   const selectionVersion = useRef(0);
 
   const loadTasks = useCallback(async (query = search) => {
@@ -257,6 +286,7 @@ export function App() {
     setDraft('');
     setError(null);
     setFocusNotice(null);
+    setFocusUndoTaskId(null);
   }, []);
 
   const submit = useCallback(async (event?: FormEvent) => {
@@ -275,10 +305,13 @@ export function App() {
           const candidate = (await window.molly.listTasks('')) as Task[];
           targetTaskId = candidate.find((task) => task.workItemId === route?.toWorkItemId)?.id ?? null;
           setFocusNotice(`已切换到：${candidate.find((task) => task.id === targetTaskId)?.title ?? '新的当前焦点'}`);
+          setFocusUndoTaskId(selectedId);
         } else if (route.action === 'ask') {
           setFocusNotice('这条内容可能属于另一个焦点，当前先留在这里。');
+          setFocusUndoTaskId(null);
         } else {
           setFocusNotice(null);
+          setFocusUndoTaskId(null);
         }
       }
       const next = targetTaskId
@@ -327,10 +360,26 @@ export function App() {
       </aside>
 
       <section className="conversation-panel">
-        {snapshot ? <Conversation snapshot={snapshot} streaming={streaming[snapshot.task.id] ?? ''} /> : <EmptyConversation onPrompt={setDraft} />}
+        {snapshot ? (
+          <Conversation
+            snapshot={snapshot}
+            streaming={streaming[snapshot.task.id] ?? ''}
+            onCancel={() => void window.molly.cancelTask(snapshot.task.id).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)))}
+          />
+        ) : <EmptyConversation onPrompt={setDraft} />}
         <form className="composer" onSubmit={submit}>
           {error && <div className="composer-error">{error}</div>}
-          {focusNotice && <div className="focus-notice">{focusNotice}</div>}
+          {focusNotice && (
+            <div className="focus-notice">
+              <span>{focusNotice}</span>
+              {focusUndoTaskId && (
+                <button type="button" onClick={() => void selectTask(focusUndoTaskId).then(() => {
+                  setFocusNotice(null);
+                  setFocusUndoTaskId(null);
+                })}>撤回</button>
+              )}
+            </div>
+          )}
           <div className="composer-inner">
             <textarea
               value={draft}

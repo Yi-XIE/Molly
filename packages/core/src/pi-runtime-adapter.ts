@@ -20,6 +20,8 @@ interface PiRuntimeOptions {
 }
 
 interface ActiveSession {
+  taskId: string;
+  workItemId: string;
   session: AgentSession;
   unsubscribe: () => void;
   targets: Map<string, { toolName: string; target: string | null }>;
@@ -128,8 +130,11 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
   }
 
   private async createSession(task: Task): Promise<ActiveSession> {
-    const cached = this.sessions.get(task.id);
-    if (cached) return cached;
+    const cached = this.sessions.get(task.workItemId);
+    if (cached) {
+      cached.taskId = task.id;
+      return cached;
+    }
 
     const modelRuntime = await this.modelRuntime();
     const availableModels = await modelRuntime.getAvailable();
@@ -137,12 +142,14 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
       throw new Error('Pi 还没有可用的模型凭据。请先运行 npm run pi 完成模型登录。');
     }
 
-    const settingsManager = SettingsManager.create(this.options.cwd, this.options.agentDir);
+    const workspaceRoot = task.workspacePath ?? this.options.cwd;
+    const sessionDir = task.workspacePath ? join(task.workspacePath, 'session') : this.options.sessionDir;
+    const settingsManager = SettingsManager.create(workspaceRoot, this.options.agentDir);
     const loader = new DefaultResourceLoader({
-      cwd: this.options.cwd,
+      cwd: workspaceRoot,
       agentDir: this.options.agentDir,
       settingsManager,
-      extensionFactories: [this.guardExtension(task.id, task.workspacePath ?? this.options.cwd)],
+      extensionFactories: [this.guardExtension(task.id, workspaceRoot)],
       systemPromptOverride: (base) => [
         base ?? '',
         '你是 Molly，Yi 的个人成长与职业助理。把对话推进为清晰的任务、产物和复盘。',
@@ -156,17 +163,17 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
 
     let sessionManager: SessionManager;
     if (task.piSessionId) {
-      const sessions = await SessionManager.list(this.options.cwd, this.options.sessionDir);
+      const sessions = await SessionManager.list(workspaceRoot, sessionDir);
       const match = sessions.find((item) => item.id === task.piSessionId);
       sessionManager = match
-        ? SessionManager.open(match.path, this.options.sessionDir, this.options.cwd)
-        : SessionManager.create(this.options.cwd, this.options.sessionDir);
+        ? SessionManager.open(match.path, sessionDir, workspaceRoot)
+        : SessionManager.create(workspaceRoot, sessionDir);
     } else {
-      sessionManager = SessionManager.create(this.options.cwd, this.options.sessionDir);
+      sessionManager = SessionManager.create(workspaceRoot, sessionDir);
     }
 
     const { session } = await createAgentSession({
-      cwd: this.options.cwd,
+      cwd: workspaceRoot,
       agentDir: this.options.agentDir,
       modelRuntime,
       settingsManager,
@@ -178,30 +185,30 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
       .filter((name) => !/(mcp|subagent)/i.test(name));
     session.setActiveToolsByName(safeTools);
 
-    const active: ActiveSession = { session, unsubscribe: () => {}, targets: new Map() };
+    const active: ActiveSession = { taskId: task.id, workItemId: task.workItemId, session, unsubscribe: () => {}, targets: new Map() };
     active.unsubscribe = session.subscribe((event) => {
       if (event.type === 'message_update' && event.assistantMessageEvent.type === 'text_delta') {
-        this.emit({ type: 'assistant_delta', taskId: task.id, delta: event.assistantMessageEvent.delta });
+        this.emit({ type: 'assistant_delta', taskId: active.taskId, delta: event.assistantMessageEvent.delta });
       } else if (event.type === 'agent_start') {
-        this.emit({ type: 'thinking', taskId: task.id, summary: '正在理解你的目标' });
+        this.emit({ type: 'thinking', taskId: active.taskId, summary: '正在理解你的目标' });
       } else if (event.type === 'compaction_start') {
-        this.emit({ type: 'compaction_start', taskId: task.id, summary: '正在压缩上下文，保留当前焦点和已确认决策' });
+        this.emit({ type: 'compaction_start', taskId: active.taskId, summary: '正在压缩上下文，保留当前焦点和已确认决策' });
       } else if (event.type === 'compaction_end') {
         if (event.errorMessage) {
-          this.emit({ type: 'compaction_failed', taskId: task.id, summary: `上下文压缩失败：${event.errorMessage}` });
+          this.emit({ type: 'compaction_failed', taskId: active.taskId, summary: `上下文压缩失败：${event.errorMessage}` });
         } else {
-          this.emit({ type: 'compaction_end', taskId: task.id, summary: event.aborted ? '上下文压缩已中止，继续使用现有上下文' : '上下文压缩完成，已恢复当前焦点' });
+          this.emit({ type: 'compaction_end', taskId: active.taskId, summary: event.aborted ? '上下文压缩已中止，继续使用现有上下文' : '上下文压缩完成，已恢复当前焦点' });
         }
       } else if (event.type === 'tool_execution_start') {
         const input = event.args && typeof event.args === 'object' ? event.args as Record<string, unknown> : {};
         const target = inferToolTarget(input);
         active.targets.set(event.toolCallId, { toolName: event.toolName, target });
-        this.emit({ type: 'acting', taskId: task.id, toolName: event.toolName, target });
+        this.emit({ type: 'acting', taskId: active.taskId, toolName: event.toolName, target });
       } else if (event.type === 'tool_execution_end') {
         const tracked = active.targets.get(event.toolCallId);
         this.emit({
           type: 'tool_finished',
-          taskId: task.id,
+          taskId: active.taskId,
           toolName: tracked?.toolName ?? event.toolName,
           ok: !event.isError,
           target: tracked?.target ?? null,
@@ -209,18 +216,28 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
         active.targets.delete(event.toolCallId);
       }
     });
-    this.sessions.set(task.id, active);
-    this.emit({ type: 'session_ready', taskId: task.id, sessionId: session.sessionId });
+    this.sessions.set(task.workItemId, active);
+    this.emit({ type: 'session_ready', taskId: active.taskId, sessionId: session.sessionId });
     return active;
   }
 
   private async run(task: Task, input: TaskInput, behavior: 'create' | 'steer'): Promise<RuntimeResult> {
     const active = await this.createSession(task);
+    const scopedInput = task.contextCapsule
+      ? [
+          '<molly_context>',
+          JSON.stringify(task.contextCapsule),
+          '</molly_context>',
+          '<yi_input>',
+          input.text,
+          '</yi_input>',
+        ].join('\n')
+      : input.text;
     if (behavior === 'steer' && active.session.isStreaming) {
-      await active.session.steer(input.text);
+      await active.session.steer(scopedInput);
       await active.session.waitForIdle();
     } else {
-      await active.session.prompt(input.text, { source: 'rpc' });
+      await active.session.prompt(scopedInput, { source: 'rpc' });
     }
     const summary = assistantSummary(active.session);
     const artifacts = artifactsFromSummary(task.id, task.workItemId, summary);
@@ -236,7 +253,7 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
   }
 
   async cancelTask(taskId: string): Promise<void> {
-    const active = this.sessions.get(taskId);
+    const active = [...this.sessions.values()].find((candidate) => candidate.taskId === taskId);
     if (!active) return;
     await active.session.abort();
     active.session.clearQueue();

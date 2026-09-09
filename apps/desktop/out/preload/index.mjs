@@ -10,6 +10,7 @@ const api = {
   getWorkItem: (workItemId) => ipcRenderer.invoke("molly:work-items:get", workItemId),
   routeFocus: (currentWorkItemId, text) => ipcRenderer.invoke("molly:focus:route", currentWorkItemId, text),
   openArtifact: (ref) => ipcRenderer.invoke("molly:artifacts:open", ref),
+  restoreArtifact: (taskId, artifactId) => ipcRenderer.invoke("molly:artifacts:restore", taskId, artifactId),
   runtimeInfo: () => ipcRenderer.invoke("molly:runtime:info"),
   onTaskEvent: (listener) => {
     const wrapped = (_event, value) => listener(value);

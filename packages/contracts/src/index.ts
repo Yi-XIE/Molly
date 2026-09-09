@@ -67,6 +67,7 @@ export interface ContextCapsule {
   version: number;
   workItemId: string;
   goal: string;
+  currentSummary: string;
   confirmedFacts: string[];
   confirmedDecisions: string[];
   constraints: string[];

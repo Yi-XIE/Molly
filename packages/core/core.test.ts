@@ -37,6 +37,7 @@ describe('Molly core', () => {
     const compiler = new ContextCompiler();
     const capsule = compiler.compile({ workItem: item, confirmedRules: ['WM-001'], confirmedFacts: ['Yi 是产品经理'], referencedArtifacts: [{ id: 'artifact-1', summary: '已确认的方案摘要' }] });
     expect(capsule.workItemId).toBe('work-1');
+    expect(capsule.currentSummary).toBe('');
     expect(capsule.allowedArtifactIds).toEqual(['artifact-1']);
     expect(compiler.toPrompt(capsule, [{ id: 'artifact-1', summary: '已确认的方案摘要' }])).toContain('已确认的方案摘要');
   });
@@ -88,13 +89,54 @@ describe('Molly core', () => {
     rmSync(directory, { recursive: true, force: true });
   });
 
+  it('injects only scoped confirmed memories into a runtime capsule', async () => {
+    const database = new DatabaseSync(':memory:');
+    const directory = mkdtempSync(join(tmpdir(), 'molly-memory-capsule-'));
+    const taskRepository = new TaskRepository(':memory:');
+    const workItems = new WorkItemRepository(database, directory);
+    let received: any = null;
+    const runtime = {
+      subscribe: () => () => undefined,
+      createTask: async (task: any) => { received = task.contextCapsule; return { sessionId: 's', summary: 'ok', artifacts: [] }; },
+      steerTask: async () => ({ sessionId: 's', summary: 'ok', artifacts: [] }),
+      cancelTask: async () => undefined,
+      dispose: async () => undefined,
+    } as any;
+    const memory = { recall: async () => [{ id: 'memory-1', content: 'Yi 偏好先看产品方案', confidence: 0.95 }] } as any;
+    const service = new TaskService(taskRepository, runtime, workItems, memory);
+    service.create(input('memory-capsule-event', '整理产品方案'), { autoRun: true });
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(received?.confirmedFacts).toContain('Yi 偏好先看产品方案');
+    expect(received?.sources.some((source: any) => source.type === 'memory')).toBe(true);
+    await service.dispose();
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
   it('increments artifact versions within a work item', () => {
     const repository = new TaskRepository(':memory:');
     const now = new Date().toISOString();
     repository.createTask({ id: 'task-artifact', workItemId: 'work-artifact', interactionStreamId: 'stream-artifact', title: '方案', origin: 'desktop', conversationRef: null, piSessionId: null, status: 'queued', surface: 'conversation', createdAt: now, updatedAt: now, lastError: null, artifacts: [] }, input('artifact-event'));
     const base = { taskId: 'task-artifact', workItemId: 'work-artifact', kind: 'text' as const, title: '方案', mimeType: 'text/plain', localRef: null, shareRef: null, previewText: 'v', createdAt: new Date().toISOString() };
-    expect(repository.addArtifact({ ...base, id: 'a1', version: 1 }).version).toBe(1);
+    const first = repository.addArtifact({ ...base, id: 'a1', version: 1 });
+    expect(first.version).toBe(1);
     expect(repository.addArtifact({ ...base, id: 'a2', version: 1 }).version).toBe(2);
+    expect(repository.addArtifact({ ...base, id: 'a3', title: '另一份方案', version: 1 }).version).toBe(1);
+    expect(repository.addArtifact({ ...base, id: 'a1', previewText: '重复投递', version: 1 })).toEqual(first);
+    repository.close();
+  });
+
+  it('restores an immutable artifact version as the newest version', () => {
+    const repository = new TaskRepository(':memory:');
+    const now = new Date().toISOString();
+    repository.createTask({ id: 'task-restore', workItemId: 'work-restore', interactionStreamId: 'stream-restore', title: '方案', origin: 'desktop', conversationRef: null, piSessionId: null, status: 'completed', surface: 'conversation', createdAt: now, updatedAt: now, lastError: null, artifacts: [] }, input('restore-event'));
+    const base = { taskId: 'task-restore', workItemId: 'work-restore', kind: 'document' as const, title: '产品方案', mimeType: 'text/markdown', localRef: null, shareRef: null, createdAt: now };
+    repository.addArtifact({ ...base, id: 'restore-v1', previewText: '第一版', version: 1 });
+    repository.addArtifact({ ...base, id: 'restore-v2', previewText: '第二版', version: 1 });
+    const restored = repository.restoreArtifact('task-restore', 'restore-v1');
+    expect(restored.version).toBe(3);
+    expect(restored.previewText).toBe('第一版');
+    expect(repository.getArtifact('restore-v1')?.version).toBe(1);
     repository.close();
   });
   it('validates transport payloads before they enter the task service', () => {
@@ -201,12 +243,23 @@ describe('Molly core', () => {
     const db = new DatabaseSync(':memory:');
     db.exec('CREATE TABLE memories (id TEXT PRIMARY KEY, kind TEXT, content TEXT, source TEXT, confidence REAL, created_at TEXT, updated_at TEXT, superseded_by TEXT, deleted_at TEXT)');
     const memory = new SqliteMemoryService(db);
-    const first = await memory.write({ kind: 'preference', content: '喜欢早上复盘', source: 'test', confidence: 0.9 });
+    const first = await memory.write({ kind: 'preference', content: '喜欢早上复盘', source: 'test', confidence: 0.9, scope: 'global', workItemId: null });
     const replacement = await memory.correct(first.id, '喜欢晚上复盘', 'test-correction');
-    expect(await memory.recall('早上')).toHaveLength(0);
-    expect((await memory.recall('晚上'))[0]?.id).toBe(replacement.id);
+    expect(await memory.recall('早上', { workItemId: 'work-1' })).toHaveLength(0);
+    expect((await memory.recall('晚上', { workItemId: 'work-1' }))[0]?.id).toBe(replacement.id);
     expect(await memory.forget(replacement.id)).toBe(true);
-    expect(await memory.recall('晚上')).toHaveLength(0);
+    expect(await memory.recall('晚上', { workItemId: 'work-1' })).toHaveLength(0);
+    db.close();
+  });
+
+  it('keeps work-item and sensitive memories out of sibling scopes', async () => {
+    const db = new DatabaseSync(':memory:');
+    db.exec('CREATE TABLE memories (id TEXT PRIMARY KEY, kind TEXT, content TEXT, source TEXT, confidence REAL, created_at TEXT, updated_at TEXT, superseded_by TEXT, deleted_at TEXT)');
+    const memory = new SqliteMemoryService(db);
+    await memory.write({ kind: 'goal', content: '产品方案只在当前项目使用', source: 'test', confidence: 0.9, scope: 'work_item', workItemId: 'product' });
+    await memory.write({ kind: 'experience', content: '职业话题是敏感内容', source: 'test', confidence: 0.9, scope: 'sensitive', workItemId: 'career' });
+    expect(await memory.recall('产品方案', { workItemId: 'career' })).toHaveLength(0);
+    expect(await memory.recall('职业话题', { workItemId: 'product' })).toHaveLength(0);
     db.close();
   });
 });

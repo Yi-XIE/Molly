@@ -13,6 +13,7 @@ const api = {
   getWorkItem: (workItemId: string) => ipcRenderer.invoke('molly:work-items:get', workItemId),
   routeFocus: (currentWorkItemId: string, text: string) => ipcRenderer.invoke('molly:focus:route', currentWorkItemId, text),
   openArtifact: (ref: string) => ipcRenderer.invoke('molly:artifacts:open', ref),
+  restoreArtifact: (taskId: string, artifactId: string) => ipcRenderer.invoke('molly:artifacts:restore', taskId, artifactId),
   runtimeInfo: () => ipcRenderer.invoke('molly:runtime:info'),
   onTaskEvent: (listener: (event: TaskServiceEvent) => void) => {
     const wrapped = (_event: Electron.IpcRendererEvent, value: TaskServiceEvent) => listener(value);

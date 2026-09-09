@@ -167,6 +167,7 @@ describe('Molly core', () => {
     const snapshot = service.create(input('protected-event'));
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(service.get(snapshot.task.id)?.task.status).toBe('waiting_input');
+    expect((repository.database.prepare('SELECT COUNT(*) AS count FROM audit_log WHERE task_id = ? AND outcome = ?').get(snapshot.task.id, 'blocked') as { count: number }).count).toBe(1);
     await service.dispose();
   });
 

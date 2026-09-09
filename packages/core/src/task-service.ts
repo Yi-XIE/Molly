@@ -64,6 +64,7 @@ export class TaskService {
         update.ok ? '工具执行完成' : '工具执行失败',
       );
     } else if (update.type === 'protected') {
+      this.repository.recordAudit(update.taskId, 'protected_operation', null, 'blocked', update.summary);
       this.repository.setStatus(update.taskId, 'waiting_input');
       this.repository.appendEvent(update.taskId, 'waiting_input', update.summary, { progress: null });
       this.notify(update.taskId);

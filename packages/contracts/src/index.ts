@@ -55,6 +55,14 @@ export interface WorkItemCard {
   lastActiveAt: string;
 }
 
+export interface RouteDecision {
+  action: 'continue' | 'switch' | 'ask';
+  fromWorkItemId: string;
+  toWorkItemId: string | null;
+  confidence: number;
+  reason: string;
+}
+
 export interface ContextCapsule {
   version: number;
   workItemId: string;

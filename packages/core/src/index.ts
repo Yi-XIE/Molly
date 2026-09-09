@@ -6,3 +6,6 @@ export * from './runtime.js';
 export * from './task-repository.js';
 export * from './task-service.js';
 export * from './tool-policy.js';
+export * from './work-item-repository.js';
+export * from './context-compiler.js';
+export * from './intent-router.js';

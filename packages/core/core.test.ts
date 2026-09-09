@@ -3,7 +3,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { decryptForNode, encryptForNode, generateNodeKeyPair, PreviewRuntimeAdapter, SqliteMemoryService, TaskRepository, TaskService, evaluateToolCall } from './src/index.js';
+import { ContextCompiler, decryptForNode, encryptForNode, generateNodeKeyPair, IntentRouter, PreviewRuntimeAdapter, SqliteMemoryService, TaskRepository, TaskService, WorkItemRepository, evaluateToolCall } from './src/index.js';
 import { taskInputSchema, taskEventSchema, type TaskInput } from '@molly/contracts';
 
 function input(eventId: string, text = '整理今天的想法'): TaskInput {
@@ -20,6 +20,34 @@ function input(eventId: string, text = '整理今天的想法'): TaskInput {
 }
 
 describe('Molly core', () => {
+  it('isolates work item storage and creates its workspace layout', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'molly-work-'));
+    const database = new DatabaseSync(':memory:');
+    const repository = new WorkItemRepository(database, directory);
+    const item = repository.create({ title: '产品方案', goal: '把灵感整理成可评审方案' });
+    expect(repository.get(item.id)?.workspacePath).toBe(item.workspacePath);
+    expect(repository.cards()[0]?.id).toBe(item.id);
+    expect(() => repository.update('missing', { title: 'x' })).toThrow();
+    database.close();
+    rmSync(directory, { recursive: true, force: true });
+  });
+
+  it('compiles a traceable, allowlisted context capsule', () => {
+    const item = { id: 'work-1', title: '产品方案', goal: '形成方案', status: 'active' as const, parentId: null, piSessionPath: null, workspacePath: 'C:/work-1', currentSummary: '', createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    const compiler = new ContextCompiler();
+    const capsule = compiler.compile({ workItem: item, confirmedRules: ['WM-001'], confirmedFacts: ['Yi 是产品经理'], referencedArtifacts: [{ id: 'artifact-1', summary: '已确认的方案摘要' }] });
+    expect(capsule.workItemId).toBe('work-1');
+    expect(capsule.allowedArtifactIds).toEqual(['artifact-1']);
+    expect(compiler.toPrompt(capsule, [{ id: 'artifact-1', summary: '已确认的方案摘要' }])).toContain('已确认的方案摘要');
+  });
+
+  it('routes explicit focus changes and asks when confidence is ambiguous', () => {
+    const current = { id: 'product', title: '产品方案', goal: '整理产品想法', tags: ['产品'], recentSummary: '', lastActiveAt: '' };
+    const career = { id: 'career', title: '职业规划', goal: '整理职业方向', tags: ['职业'], recentSummary: '', lastActiveAt: '' };
+    const router = new IntentRouter();
+    expect(router.decide('切到职业规划', current, [current, career]).action).toBe('switch');
+    expect(router.decide('这个方向也要想想', current, [current, career]).action).toBe('continue');
+  });
   it('validates transport payloads before they enter the task service', () => {
     expect(() => taskInputSchema.parse({ eventId: 'e', source: 'desktop', senderId: 'yi', text: '', receivedAt: new Date().toISOString() })).toThrow();
     expect(() => taskEventSchema.parse({ id: 'e', taskId: 't', seq: 1, type: 'progress', summary: 'ok', progress: 2, artifacts: [], occurredAt: new Date().toISOString() })).toThrow();

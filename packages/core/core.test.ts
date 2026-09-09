@@ -40,6 +40,7 @@ describe('Molly core', () => {
     expect(capsule.currentSummary).toBe('');
     expect(capsule.allowedArtifactIds).toEqual(['artifact-1']);
     expect(compiler.toPrompt(capsule, [{ id: 'artifact-1', summary: '已确认的方案摘要' }])).toContain('已确认的方案摘要');
+    expect(compiler.compile({ workItem: item }).version).toBe(2);
   });
 
   it('routes explicit focus changes and asks when confidence is ambiguous', () => {

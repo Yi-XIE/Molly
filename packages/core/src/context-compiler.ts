@@ -13,7 +13,11 @@ export interface ContextCompileInput {
 }
 
 export class ContextCompiler {
+  private readonly versions = new Map<string, number>();
+
   compile(input: ContextCompileInput): ContextCapsule {
+    const version = (this.versions.get(input.workItem.id) ?? 0) + 1;
+    this.versions.set(input.workItem.id, version);
     const sources: ContextCapsule['sources'] = [
       ...(input.confirmedRules ?? []).map((id) => ({ type: 'rule' as const, id, reason: '全局确认规则' })),
       ...(input.confirmedMemories ?? []).map((memory) => ({ type: 'memory' as const, id: memory.id, reason: '作用域记忆召回' })),
@@ -21,7 +25,7 @@ export class ContextCompiler {
       { type: 'work_item', id: input.workItem.id, reason: '当前焦点' },
     ];
     return {
-      version: 1,
+      version,
       workItemId: input.workItem.id,
       goal: input.workItem.goal,
       currentSummary: input.workItem.currentSummary,

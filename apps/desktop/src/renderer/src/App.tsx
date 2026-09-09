@@ -89,7 +89,7 @@ function Conversation({ snapshot, streaming }: { snapshot: TaskSnapshot | null; 
   return (
     <div className="conversation-scroll">
       <header className="conversation-header">
-        <p className="eyebrow">{task.origin === 'feishu' ? '来自飞书' : '桌面任务'} · {timeLabel(task.createdAt)}</p>
+        <p className="eyebrow">当前焦点：{task.title} · {task.origin === 'feishu' ? '来自飞书' : '桌面任务'} · {timeLabel(task.createdAt)}</p>
         <h1>{task.title}</h1>
         <div className={`status-pill ${STATUS_COPY[task.status].tone}`}>
           <span />{STATUS_COPY[task.status].label}

@@ -9,6 +9,8 @@ const api = {
   steerTask: (taskId: string, text: string) => ipcRenderer.invoke('molly:tasks:steer', taskId, text),
   cancelTask: (taskId: string) => ipcRenderer.invoke('molly:tasks:cancel', taskId),
   stopAll: () => ipcRenderer.invoke('molly:tasks:stop-all'),
+  listWorkItems: () => ipcRenderer.invoke('molly:work-items:list'),
+  getWorkItem: (workItemId: string) => ipcRenderer.invoke('molly:work-items:get', workItemId),
   openArtifact: (ref: string) => ipcRenderer.invoke('molly:artifacts:open', ref),
   runtimeInfo: () => ipcRenderer.invoke('molly:runtime:info'),
   onTaskEvent: (listener: (event: TaskServiceEvent) => void) => {

@@ -15,6 +15,7 @@ import { GatewayNodeClient } from './gateway-node-client.js';
 let mainWindow: BrowserWindow | null = null;
 let taskService: TaskService | null = null;
 let gatewayNodeClient: GatewayNodeClient | null = null;
+let workItemRepository: WorkItemRepository | null = null;
 
 function projectRoot(): string {
   if (process.env.MOLLY_PROJECT_ROOT) return resolve(process.env.MOLLY_PROJECT_ROOT);
@@ -59,6 +60,11 @@ function registerIpc(service: TaskService, runtimeMode: string): void {
     await Promise.all(active.map((task) => service.cancel(task.id)));
     return { stopped: active.length };
   });
+  ipcMain.handle('molly:work-items:list', () => workItemRepository?.list('active') ?? []);
+  ipcMain.handle('molly:work-items:get', (_event, workItemId: unknown) => {
+    if (typeof workItemId !== 'string') throw new Error('工作项编号无效。');
+    return workItemRepository?.get(workItemId) ?? null;
+  });
   ipcMain.handle('molly:runtime:info', () => ({
     mode: runtimeMode,
     label: runtimeMode === 'preview' ? '预览运行' : 'Pi Runtime',
@@ -88,7 +94,7 @@ async function createWindow(): Promise<void> {
         sessionDir: join(root, '.pi', 'sessions'),
       });
   const taskRepository = new TaskRepository(join(dataDir, 'molly.db'));
-  const workItemRepository = new WorkItemRepository(taskRepository.database, join(root, '.molly', 'work-items'));
+  workItemRepository = new WorkItemRepository(taskRepository.database, join(root, '.molly', 'work-items'));
   taskService = new TaskService(taskRepository, runtime, workItemRepository);
   gatewayNodeClient = new GatewayNodeClient({
     service: taskService,

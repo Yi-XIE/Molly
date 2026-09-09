@@ -6,6 +6,7 @@ import {
   PreviewRuntimeAdapter,
   TaskRepository,
   TaskService,
+  WorkItemRepository,
   createId,
 } from '@molly/core';
 import { PiRuntimeAdapter } from '@molly/core/pi-runtime-adapter';
@@ -86,7 +87,9 @@ async function createWindow(): Promise<void> {
         agentDir: join(root, '.pi-home'),
         sessionDir: join(root, '.pi', 'sessions'),
       });
-  taskService = new TaskService(new TaskRepository(join(dataDir, 'molly.db')), runtime);
+  const taskRepository = new TaskRepository(join(dataDir, 'molly.db'));
+  const workItemRepository = new WorkItemRepository(taskRepository.database, join(root, '.molly', 'work-items'));
+  taskService = new TaskService(taskRepository, runtime, workItemRepository);
   gatewayNodeClient = new GatewayNodeClient({
     service: taskService,
     credentialsPath: join(dataDir, 'gateway-node.json'),

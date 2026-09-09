@@ -4,6 +4,7 @@ import { taskInputSchema, taskTitle } from '@molly/contracts';
 import { createId } from './ids.js';
 import type { RuntimeAdapter, RuntimeUpdate } from './runtime.js';
 import { TaskRepository } from './task-repository.js';
+import { WorkItemRepository } from './work-item-repository.js';
 
 export type TaskServiceEvent =
   | { type: 'snapshot'; snapshot: TaskSnapshot }
@@ -11,6 +12,7 @@ export type TaskServiceEvent =
 
 export interface CreateTaskOptions {
   taskId?: string;
+  workItemId?: string;
   queuedOffline?: boolean;
   autoRun?: boolean;
 }
@@ -23,6 +25,7 @@ export class TaskService {
   constructor(
     readonly repository: TaskRepository,
     private readonly runtime: RuntimeAdapter,
+    private readonly workItems?: WorkItemRepository,
   ) {
     this.runtimeUnsubscribe = runtime.subscribe((update) => this.handleRuntimeUpdate(update));
   }
@@ -72,9 +75,13 @@ export class TaskService {
   create(inputValue: TaskInput, options: CreateTaskOptions = {}): TaskSnapshot {
     const input = taskInputSchema.parse(inputValue);
     const now = new Date().toISOString();
+    const workItem = options.workItemId
+      ? this.workItems?.get(options.workItemId)
+      : this.workItems?.create({ title: taskTitle(input.text), goal: input.text });
+    const workItemId = workItem?.id ?? options.workItemId ?? input.taskId ?? createId('work_item');
     const task: Task = {
       id: options.taskId ?? input.taskId ?? createId('task'),
-      workItemId: input.taskId ?? options.taskId ?? createId('work_item'),
+      workItemId,
       interactionStreamId: input.conversationRef ?? createId('stream'),
       title: taskTitle(input.text),
       origin: input.source,

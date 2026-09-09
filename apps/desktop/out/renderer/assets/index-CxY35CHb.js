@@ -12641,11 +12641,23 @@ function App() {
     if (selectionVersion.current === version) setSnapshot(next);
   }, []);
   reactExports.useEffect(() => {
-    void Promise.all([
-      loadTasks(""),
-      window.molly.runtimeInfo().then((info) => setRuntimeLabel(info.label))
-    ]).catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
-  }, [loadTasks]);
+    let disposed = false;
+    void (async () => {
+      const [list] = await Promise.all([
+        window.molly.listTasks(""),
+        window.molly.runtimeInfo().then((info) => setRuntimeLabel(info.label))
+      ]);
+      if (disposed) return;
+      setTasks(list);
+      const latest = list[0];
+      if (latest) await selectTask(latest.id);
+    })().catch((reason) => {
+      if (!disposed) setError(reason instanceof Error ? reason.message : String(reason));
+    });
+    return () => {
+      disposed = true;
+    };
+  }, [selectTask]);
   reactExports.useEffect(() => {
     const timer = window.setTimeout(() => void loadTasks(search), 140);
     return () => window.clearTimeout(timer);

@@ -48,6 +48,8 @@ describe('Molly gateway boundaries', () => {
     const headers = new Headers({ 'x-lark-signature': signature, 'x-lark-request-timestamp': timestamp, 'x-lark-request-nonce': nonce });
     expect(verifyFeishuSignature(raw, headers, 'encrypt')).toBe(true);
     expect(verifyFeishuSignature(raw, headers, 'wrong')).toBe(false);
+    expect(verifyFeishuSignature(raw, new Headers(), 'encrypt')).toBe(false);
+    expect(verifyFeishuSignature(raw, new Headers(), '')).toBe(true);
   });
 
   it('keeps duplicate event identity after a job is acknowledged', () => {

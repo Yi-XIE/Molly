@@ -52,7 +52,7 @@ export function verifyFeishuSignature(
   encryptKey: string,
 ): boolean {
   const signature = headers.get('x-lark-signature') ?? '';
-  if (!signature) return true;
+  if (!signature) return !encryptKey;
   if (!encryptKey) return false;
   const timestamp = headers.get('x-lark-request-timestamp') ?? '';
   const nonce = headers.get('x-lark-request-nonce') ?? '';

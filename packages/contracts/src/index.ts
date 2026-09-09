@@ -87,6 +87,7 @@ export interface ArtifactRef {
   shareRef: string | null;
   previewText: string | null;
   createdAt: string;
+  version: number;
 }
 
 export interface Task {
@@ -221,6 +222,7 @@ export const artifactRefSchema = z.object({
   shareRef: z.string().nullable(),
   previewText: z.string().nullable(),
   createdAt: z.string().datetime(),
+  version: z.number().int().positive(),
 }) satisfies z.ZodType<ArtifactRef>;
 
 export const taskEventSchema = z.object({

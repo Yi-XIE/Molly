@@ -87,6 +87,16 @@ describe('Molly core', () => {
     database.close();
     rmSync(directory, { recursive: true, force: true });
   });
+
+  it('increments artifact versions within a work item', () => {
+    const repository = new TaskRepository(':memory:');
+    const now = new Date().toISOString();
+    repository.createTask({ id: 'task-artifact', workItemId: 'work-artifact', interactionStreamId: 'stream-artifact', title: '方案', origin: 'desktop', conversationRef: null, piSessionId: null, status: 'queued', surface: 'conversation', createdAt: now, updatedAt: now, lastError: null, artifacts: [] }, input('artifact-event'));
+    const base = { taskId: 'task-artifact', workItemId: 'work-artifact', kind: 'text' as const, title: '方案', mimeType: 'text/plain', localRef: null, shareRef: null, previewText: 'v', createdAt: new Date().toISOString() };
+    expect(repository.addArtifact({ ...base, id: 'a1', version: 1 }).version).toBe(1);
+    expect(repository.addArtifact({ ...base, id: 'a2', version: 1 }).version).toBe(2);
+    repository.close();
+  });
   it('validates transport payloads before they enter the task service', () => {
     expect(() => taskInputSchema.parse({ eventId: 'e', source: 'desktop', senderId: 'yi', text: '', receivedAt: new Date().toISOString() })).toThrow();
     expect(() => taskEventSchema.parse({ id: 'e', taskId: 't', seq: 1, type: 'progress', summary: 'ok', progress: 2, artifacts: [], occurredAt: new Date().toISOString() })).toThrow();

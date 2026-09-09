@@ -43,6 +43,7 @@ export class PreviewRuntimeAdapter implements RuntimeAdapter {
       shareRef: null,
       previewText: summary,
       createdAt: new Date().toISOString(),
+      version: 1,
     };
     return { sessionId, summary, artifacts: [artifact] };
   }

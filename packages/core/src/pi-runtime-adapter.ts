@@ -62,6 +62,7 @@ function artifactsFromSummary(taskId: string, workItemId: string, summary: strin
     shareRef: null,
     previewText: summary,
     createdAt: now,
+    version: 1,
   }];
   const urls = [...summary.matchAll(/https?:\/\/[^\s)\]}>]+/g)].map((match) => match[0]);
   for (const url of [...new Set(urls)].slice(0, 6)) {
@@ -77,6 +78,7 @@ function artifactsFromSummary(taskId: string, workItemId: string, summary: strin
       shareRef: url,
       previewText: null,
       createdAt: now,
+      version: 1,
     });
   }
   return artifacts;

@@ -95,6 +95,7 @@ export class TaskRepository {
         local_ref TEXT,
         share_ref TEXT,
         preview_text TEXT,
+        version INTEGER NOT NULL DEFAULT 1,
         created_at TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS audit_log (
@@ -123,6 +124,7 @@ export class TaskRepository {
     if (!taskColumns.some((column) => column.name === 'interaction_stream_id')) this.database.exec("ALTER TABLE tasks ADD COLUMN interaction_stream_id TEXT NOT NULL DEFAULT ''");
     const artifactColumns = this.database.prepare('PRAGMA table_info(artifacts)').all() as Row[];
     if (!artifactColumns.some((column) => column.name === 'work_item_id')) this.database.exec("ALTER TABLE artifacts ADD COLUMN work_item_id TEXT NOT NULL DEFAULT ''");
+    if (!artifactColumns.some((column) => column.name === 'version')) this.database.exec("ALTER TABLE artifacts ADD COLUMN version INTEGER NOT NULL DEFAULT 1");
   }
 
   createTask(task: Task, input: TaskInput): { task: Task; created: boolean } {
@@ -262,23 +264,26 @@ export class TaskRepository {
   }
 
   addArtifact(artifact: ArtifactRef): ArtifactRef {
+    const row = this.database.prepare('SELECT COALESCE(MAX(version), 0) AS max_version FROM artifacts WHERE work_item_id = ?').get(artifact.workItemId) as Row;
+    const stored = { ...artifact, version: Math.max(artifact.version, Number(row.max_version ?? 0) + 1) };
     this.database.prepare(`
       INSERT OR REPLACE INTO artifacts (
-        id, task_id, work_item_id, kind, title, mime_type, local_ref, share_ref, preview_text, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        id, task_id, work_item_id, kind, title, mime_type, local_ref, share_ref, preview_text, version, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
-      artifact.id,
-      artifact.taskId,
-      artifact.workItemId,
-      artifact.kind,
-      artifact.title,
-      artifact.mimeType,
-      artifact.localRef,
-      artifact.shareRef,
-      artifact.previewText,
-      artifact.createdAt,
+      stored.id,
+      stored.taskId,
+      stored.workItemId,
+      stored.kind,
+      stored.title,
+      stored.mimeType,
+      stored.localRef,
+      stored.shareRef,
+      stored.previewText,
+      stored.version,
+      stored.createdAt,
     );
-    return artifact;
+    return stored;
   }
 
   setStatus(taskId: string, status: TaskStatus, options: { error?: string | null; updatedAt?: string } = {}): void {
@@ -379,6 +384,7 @@ export class TaskRepository {
         shareRef: artifact.share_ref === null ? null : asString(artifact.share_ref),
         previewText: artifact.preview_text === null ? null : asString(artifact.preview_text),
         createdAt: asString(artifact.created_at),
+        version: Number(artifact.version ?? 1),
       })),
     };
   }

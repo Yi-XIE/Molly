@@ -93,7 +93,7 @@ async function createWindow(): Promise<void> {
   mkdirSync(root, { recursive: true });
   const dataDir = join(app.getPath('userData'), 'data');
   mkdirSync(dataDir, { recursive: true });
-  const runtimeMode = process.env.MOLLY_RUNTIME_MODE ?? (app.isPackaged ? 'pi' : 'preview');
+  const runtimeMode = process.env.MOLLY_RUNTIME_MODE ?? 'pi';
   const runtime = runtimeMode === 'preview'
     ? new PreviewRuntimeAdapter()
     : new (await import('@molly/core/pi-runtime-adapter')).PiRuntimeAdapter({

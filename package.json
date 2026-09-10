@@ -10,7 +10,8 @@
   ],
   "scripts": {
     "dev": "concurrently -k -n desktop,gateway -c magenta,cyan \"npm run dev:desktop\" \"npm run dev:gateway\"",
-    "dev:desktop": "npm run dev -w @molly/desktop",
+    "dev:desktop": "node scripts/run-desktop.mjs pi",
+    "dev:desktop:preview": "node scripts/run-desktop.mjs preview",
     "dev:gateway": "npm run dev -w @molly/gateway",
     "build:packages": "npm run build -w @molly/contracts && npm run build -w @molly/core",
     "build": "npm run build:packages && npm run build -w @molly/gateway && npm run build -w @molly/desktop",

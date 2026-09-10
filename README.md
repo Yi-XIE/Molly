@@ -20,7 +20,7 @@ npm test
 npm run dev
 ```
 
-`npm run dev:desktop` starts the Molly desktop application. `npm run dev:gateway` starts the local gateway on port 4317. Copy each app's `.env.example` to `.env` when connecting a real Feishu application or a remote gateway.
+`npm run dev:desktop` starts the Molly desktop application with the embedded Pi runtime. Pi creates or resumes the WorkItem session when Yi sends the first message. Use `npm run dev:desktop:preview` only when developing the interface without a model. `npm run dev:gateway` starts the local gateway on port 4317. Copy each app's `.env.example` to `.env` when connecting a real Feishu application or a remote gateway.
 
 The original isolated Pi launcher remains available through `npm run pi`, and the memory experiment remains verifiable through `npm run validate`.
 

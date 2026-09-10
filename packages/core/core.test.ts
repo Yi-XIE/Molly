@@ -4,6 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { ContextCompiler, decryptForNode, encryptForNode, generateNodeKeyPair, IntentRouter, PreviewRuntimeAdapter, SqliteMemoryService, TaskRepository, TaskService, WorkItemRepository, evaluateToolCall } from './src/index.js';
+import { activeToolsForInput, shouldLoadP0Extension } from './src/pi-runtime-adapter.js';
 import { taskInputSchema, taskEventSchema, type TaskInput } from '@molly/contracts';
 
 function input(eventId: string, text = '整理今天的想法'): TaskInput {
@@ -300,6 +301,17 @@ describe('Molly core', () => {
     expect(evaluateToolCall('powershell', { command: 'Get-ChildItem C:\\work' }).allowed).toBe(true);
     expect(evaluateToolCall('read_file', { path: 'C:\\outside\\secret.txt' }, { workspaceRoot: 'C:\\work-item' }).allowed).toBe(false);
     expect(evaluateToolCall('read_file', { path: 'C:\\work-item\\notes.txt' }, { workspaceRoot: 'C:\\work-item' }).allowed).toBe(true);
+  });
+
+  it('loads only P0-safe Pi extensions and routes web tools by intent', () => {
+    expect(shouldLoadP0Extension('npm:rpiv-todo@1.1.0')).toBe(true);
+    expect(shouldLoadP0Extension('npm:context-mode@1.0.169')).toBe(true);
+    expect(shouldLoadP0Extension('npm:pi-memory@0.4.2')).toBe(false);
+    expect(shouldLoadP0Extension('npm:pi-subagents@0.65.1')).toBe(false);
+    expect(shouldLoadP0Extension('local C:/project/.pi/npm/node_modules/pi-mcp-adapter/index.ts')).toBe(false);
+    const tools = ['read', 'todo', 'web_search', 'fetch_content', 'subagent', 'bg_wait', 'mcp'];
+    expect(activeToolsForInput(tools, '继续整理产品方案')).toEqual(['read', 'todo']);
+    expect(activeToolsForInput(tools, '联网调研最新的个人助手')).toEqual(['read', 'todo', 'web_search', 'fetch_content']);
   });
 
   it('supports memory correction and soft deletion', async () => {

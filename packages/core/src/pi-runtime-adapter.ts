@@ -27,6 +27,20 @@ interface ActiveSession {
   targets: Map<string, { toolName: string; target: string | null }>;
 }
 
+const WEB_TOOLS = new Set(['web_search', 'source_check', 'fetch_content', 'get_search_content']);
+const STAGED_TOOLS = /^(?:subagent|bg_wait|mcp|mcpScript|memory_write|scratchpad|memory_read|memory_forget|memory_restore|memory_search|memory_status)$/i;
+const WEB_INTENT = /联网|搜索|查找|查询|调研|研究|最新|网页|网站|链接|网址|新闻|资料|web|search|research/i;
+const STAGED_EXTENSIONS = /(?:pi-subagents|pi-mcp-adapter|pi-memory)/i;
+
+export function shouldLoadP0Extension(source: string): boolean {
+  return !STAGED_EXTENSIONS.test(source);
+}
+
+export function activeToolsForInput(toolNames: string[], input: string): string[] {
+  const needsWeb = WEB_INTENT.test(input);
+  return toolNames.filter((name) => !STAGED_TOOLS.test(name) && (needsWeb || !WEB_TOOLS.has(name)));
+}
+
 function contentText(message: unknown): string {
   if (!message || typeof message !== 'object') return '';
   const content = (message as { content?: unknown }).content;
@@ -144,12 +158,20 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
 
     const workspaceRoot = task.workspacePath ?? this.options.cwd;
     const sessionDir = task.workspacePath ? join(task.workspacePath, 'session') : this.options.sessionDir;
-    const settingsManager = SettingsManager.create(workspaceRoot, this.options.agentDir);
+    // Keep the project-level .pi settings (and installed extensions) rooted at Molly,
+    // while Pi itself executes inside the current WorkItem directory.
+    const settingsManager = SettingsManager.create(this.options.cwd, this.options.agentDir);
     const loader = new DefaultResourceLoader({
-      cwd: workspaceRoot,
+      // Resolve Molly's project-level .pi package manifest from the project root.
+      // The session and tools still use the WorkItem cwd below.
+      cwd: this.options.cwd,
       agentDir: this.options.agentDir,
       settingsManager,
       extensionFactories: [this.guardExtension(task.id, workspaceRoot)],
+      extensionsOverride: (base) => ({
+        ...base,
+        extensions: base.extensions.filter((extension) => shouldLoadP0Extension(`${extension.sourceInfo?.source ?? ''} ${extension.path}`)),
+      }),
       systemPromptOverride: (base) => [
         base ?? '',
         '你是 Molly，Yi 的个人成长与职业助理。把对话推进为清晰的任务、产物和复盘。',
@@ -180,10 +202,7 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
       resourceLoader: loader,
       sessionManager,
     });
-    const safeTools = session.getAllTools()
-      .map((tool) => tool.name)
-      .filter((name) => !/(mcp|subagent)/i.test(name));
-    session.setActiveToolsByName(safeTools);
+    session.setActiveToolsByName(activeToolsForInput(session.getAllTools().map((tool) => tool.name), ''));
 
     const active: ActiveSession = { taskId: task.id, workItemId: task.workItemId, session, unsubscribe: () => {}, targets: new Map() };
     active.unsubscribe = session.subscribe((event) => {
@@ -223,6 +242,7 @@ export class PiRuntimeAdapter implements RuntimeAdapter {
 
   private async run(task: Task, input: TaskInput, behavior: 'create' | 'steer'): Promise<RuntimeResult> {
     const active = await this.createSession(task);
+    active.session.setActiveToolsByName(activeToolsForInput(active.session.getAllTools().map((tool) => tool.name), input.text));
     const scopedInput = task.contextCapsule
       ? [
           '<molly_context>',

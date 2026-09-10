@@ -3,8 +3,16 @@ dist/
 coverage/
 .vite/
 .pi-home/
+.molly/
+.pi-disabled/
 .pi/npm/
 .pi/sessions/
+.pi/auth.json
+.pi/models.json
+.pi/models-store.json
+.pi/trust.json
+.pi/tmp/
+.pi/git/
 .venv-openviking/
 downloads/
 *.log
